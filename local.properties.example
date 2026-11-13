@@ -1,0 +1,6 @@
+# 이 파일을 복사해 local.properties를 만들고, 팀 내에서 공유받은 값을 채우세요.
+# local.properties는 git에 올리지 않습니다.
+#
+# sdk.dir은 Android Studio가 자동으로 넣습니다.
+#
+# 이후 Firebase·서명 키 등을 붙일 때 필요한 키 이름을 여기에 추가합니다.
