@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -37,6 +38,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        // Back = 앱 종료(Finish). 기본 동작은 태스크를 뒤로 보내기만 해서 Pleos 분할 창에선 아무 변화가 없다 (docs 1-7).
+        // 종료되면 onDestroy에서 포그라운드 서비스도 끈다
+        onBackPressedDispatcher.addCallback(this) { finish() }
 
         val missing = REQUIRED_PERMISSIONS.filter { !isGranted(it) }
         if (missing.isEmpty()) startKeepAliveIfAllowed() else permissionLauncher.launch(missing.toTypedArray())
