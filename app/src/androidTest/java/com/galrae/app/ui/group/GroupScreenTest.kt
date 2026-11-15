@@ -101,7 +101,7 @@ class GroupScreenTest {
         returnFromComingSoon()
         compose.onNodeWithTag("group_members").assertExists()
         compose.onNodeWithText("언니네").performClick()
-        for (label in listOf("메시지 남기기", "같이 들르기", "여기로 가기")) {
+        for (label in listOf("같이 들르기", "여기로 가기")) {
             compose.onNodeWithText(label).assertIsEnabled().performClick()
             returnFromComingSoon()
             compose.onNodeWithText("언니네 정보").assertExists()

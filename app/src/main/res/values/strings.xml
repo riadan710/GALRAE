@@ -93,9 +93,17 @@
     <string name="coming_soon_title">아직 준비 중인 화면이에요</string>
     <string name="coming_soon_description">이 기능은 지금 만들고 있어요.</string>
     <string name="coming_soon_back">돌아가기</string>
+    <string name="speech_cancel_input">입력 취소</string>
+    <string name="speech_stop_reading">읽기 중지</string>
+    <string name="speech_replay">다시 읽기</string>
     <string name="speech_no_result">인식된 내용이 없어요. 다시 말해 주세요</string>
+    <string name="speech_timeout">입력 시간이 끝났어요. 다시 말해 주세요</string>
     <string name="speech_stt_error">음성 인식을 시작할 수 없어요 (%1$s)</string>
     <string name="speech_tts_error">텍스트를 읽을 수 없어요 (%1$s)</string>
     <string name="speech_permission_denied">마이크 권한이 필요해요. 설정에서 권한을 허용해 주세요</string>
     <string name="speech_focus_lost">다른 오디오가 사용 중이라 읽기를 중지했어요</string>
+    <string name="speech_recording">메시지 남기는 중</string>
+    <string name="speech_delivered_group">그룹에게 메시지를 전달했어요.</string>
+    <string name="speech_delivered_member">%1$s에게 메시지를 전달했어요.</string>
+    <string name="speech_remaining">남은 입력 시간 %1$d초</string>
 </resources>

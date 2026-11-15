@@ -36,6 +36,7 @@ fun MemberDetailScreen(
     onJoinWaypoint: ((Place) -> Unit)? = null,
     onFollowDestination: ((Place) -> Unit)? = null,
     onMore: (() -> Unit)? = null,
+    messageFooter: (@Composable () -> Unit)? = null,
 ) {
     Column(Modifier.fillMaxSize().background(AppBackground).padding(24.dp).testTag("member_detail"),
         verticalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -44,7 +45,7 @@ fun MemberDetailScreen(
             Surface(shape = RoundedCornerShape(24.dp), color = Color.White) {
                 Column(Modifier.padding(28.dp), verticalArrangement = Arrangement.spacedBy(32.dp)) {
                     MemberSummary(member, member.id == myMember?.id)
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (messageFooter != null) messageFooter() else Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         GalraeButton(stringResource(R.string.flow_meetup), onMeetup, Modifier.weight(1f), GalraeButtonStyle.SECONDARY,
                             leading = { Image(painterResource(R.drawable.ic_flow_meet), null, Modifier.size(32.dp)) })
                         GalraeButton(stringResource(R.string.flow_message), { onMessage?.invoke() }, Modifier.weight(1f),

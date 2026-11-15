@@ -1,5 +1,14 @@
 package com.galrae.app.ui.group
 
+import com.galrae.app.speech.SpeechController
+import com.galrae.app.ui.speech.SpeechMessageFooter
+import com.galrae.app.speech.SpeechState
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.galrae.app.ui.meetup.MeetupUiPreview
@@ -35,16 +44,22 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 @Composable
-fun GroupScreen(group: GroupRepository, lifecycle: Lifecycle, onExit: () -> Unit) {
+fun GroupScreen(group: GroupRepository, lifecycle: Lifecycle, onExit: () -> Unit, speech: SpeechController? = null) {
     val memberFlow = remember(group, lifecycle) { group.members.flowWithLifecycle(lifecycle) }
     val proposalFlow = remember(group, lifecycle) { group.proposals.flowWithLifecycle(lifecycle) }
     val members by memberFlow.collectAsState(group.members.value)
     val proposals by proposalFlow.collectAsState(group.proposals.value)
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var selectedMemberId by rememberSaveable { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val speechState = speech?.state?.collectAsState()?.value ?: SpeechState()
+    var messageActive by rememberSaveable { mutableStateOf(false) }
+    var permissionPending by rememberSaveable { mutableStateOf(false) }
+    var messageToId by rememberSaveable { mutableStateOf<String?>(null) }
+    val cancelMessage = { speech?.discardDraft(); messageActive = false; permissionPending = false }
     var showMeetup by rememberSaveable { mutableStateOf(false) }
     var showComingSoon by rememberSaveable { mutableStateOf(false) }
-    val unavailable = { showComingSoon = true }
+    val unavailable = { cancelMessage(); showComingSoon = true }
     var showMenu by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -61,6 +76,42 @@ fun GroupScreen(group: GroupRepository, lifecycle: Lifecycle, onExit: () -> Unit
     val proposal = proposals.filter { it.isVisibleTo(group.myId, now) }.maxByOrNull { it.createdAt }
     val myWaypoints = members.find { it.id == group.myId }?.nav?.waypoints.orEmpty()
 
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (permissionPending) {
+            permissionPending = false
+            if (granted && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                messageActive = true
+                speech?.listen()
+            } else speech?.permissionDenied()
+        }
+    }
+    val messageAction = {
+        if (speechState.listening) speech?.finishInput()
+        else if (speech != null && speechState.readingId == null) {
+            messageToId = selectedMemberId?.takeUnless { it == group.myId }
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                messageActive = true
+                speech.listen()
+            } else {
+                permissionPending = true
+                permission.launch(Manifest.permission.RECORD_AUDIO)
+            }
+        }
+        Unit
+    }
+    LaunchedEffect(messageActive, speechState.listening, speechState.final, speechState.error) {
+        if (messageActive && !speechState.listening) {
+            messageActive = false
+            if (speechState.final && speechState.error == null && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                speech?.send(messageToId)
+            }
+        }
+    }
+    BackHandler(enabled = speechState.listening || messageActive) { cancelMessage() }
+    val footer: @Composable () -> Unit = {
+        SpeechMessageFooter(members, group.myId, speechState,
+            onMeetup = { cancelMessage(); showMeetup = true }, onMessage = messageAction)
+    }
     if (showComingSoon) {
         Dialog(onDismissRequest = { showComingSoon = false }, properties = DialogProperties(
             usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
@@ -69,7 +120,7 @@ fun GroupScreen(group: GroupRepository, lifecycle: Lifecycle, onExit: () -> Unit
         }
     }
     val selectedMember = members.find { it.id == selectedMemberId }
-    BackHandler(enabled = selectedMember != null && !showMeetup) { selectedMemberId = null }
+    BackHandler(enabled = selectedMember != null && !showMeetup && !speechState.listening && !messageActive) { selectedMemberId = null }
     if (showMeetup) {
         Surface(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
@@ -82,9 +133,9 @@ fun GroupScreen(group: GroupRepository, lifecycle: Lifecycle, onExit: () -> Unit
         Surface(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
                 MemberDetailScreen(selectedMember, members.find { it.id == group.myId },
-                    onBack = { selectedMemberId = null }, onMeetup = { showMeetup = true },
-                    onMessage = unavailable, onJoinWaypoint = { unavailable() },
-                    onFollowDestination = { unavailable() }, onMore = unavailable)
+                    onBack = { cancelMessage(); selectedMemberId = null }, onMeetup = { cancelMessage(); showMeetup = true },
+                    onMessage = if (speech == null) unavailable else messageAction, onJoinWaypoint = { unavailable() },
+                    onFollowDestination = { unavailable() }, onMore = unavailable, messageFooter = if (speech != null) footer else null)
             }
         }
         return
@@ -108,6 +159,11 @@ fun GroupScreen(group: GroupRepository, lifecycle: Lifecycle, onExit: () -> Unit
                         Image(painterResource(R.drawable.ic_group_more), stringResource(R.string.group_menu), Modifier.size(56.dp))
                     }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        if (speechState.readingId != null) DropdownMenuItem(
+                            text = { Text(stringResource(R.string.speech_stop_reading)) },
+                            onClick = { showMenu = false; speech?.stopAllReading() })
+                        if (speechState.listening || messageActive) DropdownMenuItem(
+                            text = { Text(stringResource(R.string.speech_cancel_input)) }, onClick = { showMenu = false; cancelMessage() })
                         DropdownMenuItem(text = { Text(stringResource(R.string.group_exit)) }, onClick = { showMenu = false; onExit() })
                     }
                 }
@@ -139,9 +195,12 @@ fun GroupScreen(group: GroupRepository, lifecycle: Lifecycle, onExit: () -> Unit
                 contentPadding = PaddingValues(bottom = 16.dp)) {
                 items(members, key = { it.id }) { member ->
                     Box(Modifier.testTag("member_${member.id}")) {
-                        MemberCard(member, member.id == group.myId, onClick = { selectedMemberId = member.id })
+                        MemberCard(member, member.id == group.myId, onClick = { cancelMessage(); selectedMemberId = member.id })
                     }
                 }
+            }
+            if (speech != null) {
+                footer()
             }
         }
     }

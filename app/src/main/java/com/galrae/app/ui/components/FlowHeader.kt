@@ -22,7 +22,7 @@ fun FlowHeader(title: String, onBack: () -> Unit, onMore: (() -> Unit)? = null) 
         }
         Text(title, style = MaterialTheme.typography.titleLarge.copy(fontSize = 40.sp, lineHeight = 52.sp),
             modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        IconButton(onClick = { onMore?.invoke() }, enabled = onMore != null, modifier = Modifier.size(80.dp)) {
+        if (onMore != null) IconButton(onClick = onMore, modifier = Modifier.size(80.dp)) {
             Image(painterResource(R.drawable.ic_group_more), stringResource(R.string.group_menu), Modifier.size(56.dp))
         }
     }

@@ -1,5 +1,12 @@
 package com.galrae.app
 
+import com.galrae.app.speech.SpeechController
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -14,6 +21,15 @@ import com.galrae.app.service.KeepAliveService
 import com.galrae.app.ui.theme.GALRAETheme
 
 class MainActivity : ComponentActivity() {
+    lateinit var speech: SpeechController
+        private set
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == Intent.ACTION_SCREEN_OFF) speech.stop()
+            else if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) speech.start()
+        }
+    }
+
 
     // 위치: 포그라운드 서비스(location 유형) 시작 조건. 알림: 서비스 알림 표시 (거부해도 서비스는 동작)
     private val permissionLauncher = registerForActivityResult(
@@ -23,9 +39,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        speech = SpeechController(this, (application as GalraeApp).group)
+        ContextCompat.registerReceiver(this, screenReceiver, IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+        }, ContextCompat.RECEIVER_NOT_EXPORTED)
         setContent {
             GALRAETheme {
-                GroupScreen((application as GalraeApp).group, lifecycle, onExit = { finish() })
+                GroupScreen((application as GalraeApp).group, lifecycle, onExit = { finish() }, speech = speech)
             }
         }
 
@@ -37,7 +58,19 @@ class MainActivity : ComponentActivity() {
         if (missing.isEmpty()) startKeepAliveIfAllowed() else permissionLauncher.launch(missing.toTypedArray())
     }
 
+    override fun onStart() {
+        super.onStart()
+        speech.start()
+    }
+
+    override fun onStop() {
+        speech.stop()
+        super.onStop()
+    }
+
     override fun onDestroy() {
+        unregisterReceiver(screenReceiver)
+        speech.stop()
         // 회전 등으로 다시 만들어지는 경우가 아니라 앱을 끝낼 때만 서비스를 끈다
         if (isFinishing) KeepAliveService.stop(this)
         super.onDestroy()
