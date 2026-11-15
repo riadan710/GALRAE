@@ -127,8 +127,9 @@ fun ProposalCard(
     }
 }
 
+/** 카운트다운 원형 표시 (보조 버튼 앞). Flow 1 하단 시트에서도 쓴다. */
 @Composable
-private fun CountdownIndicator(seconds: Int) {
+internal fun CountdownIndicator(seconds: Int) {
     Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
         Image(painterResource(R.drawable.ic_countdown_track), null, Modifier.requiredSize(46.154.dp))
         Image(painterResource(R.drawable.ic_countdown_ring), null, Modifier.requiredSize(46.154.dp))

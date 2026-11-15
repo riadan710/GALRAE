@@ -116,4 +116,23 @@
     <string name="speech_playback_complete">재생 완료</string>
     <string name="speech_playback_stopped">재생 중지</string>
     <string name="speech_playback_failed">재생 실패</string>
+
+    <!-- Flow 1 하단 확인 시트 (docs 5-1, 5-2). %2$s는 이름 뒤 조사(이/가, 과/와) -->
+    <string name="route_sheet_changed_title">내비에서 목적지가 바뀌었어요</string>
+    <string name="route_sheet_changed_question">멤버들과 함께 갈까요?</string>
+    <string name="route_sheet_go_alone">혼자 가기</string>
+    <string name="route_sheet_propose">목적지 제안하기</string>
+    <string name="route_sheet_proposed_title">%1$s%2$s 목적지를 제안했어요</string>
+    <string name="route_sheet_proposed_question">%1$s%2$s 함께 갈까요?</string>
+    <string name="route_sheet_change_destination">목적지 변경하기</string>
+    <string name="route_sheet_follow_title">해당 목적지로 변경할까요?</string>
+
+    <!-- Flow 1 처리 결과 토스트 -->
+    <string name="route_toast_proposed">멤버들에게 목적지를 제안했어요.</string>
+    <string name="route_toast_destination_changed">목적지를 변경했어요.</string>
+    <string name="route_toast_waypoint_added">경유지가 추가됐어요.</string>
+    <string name="route_toast_waypoint_exists">이미 내 경유지에 있어요.</string>
+    <string name="route_toast_waypoint_replaced">경유지를 교체했어요.</string>
+    <string name="route_toast_dropped">%1$s 경유지는 다시 넣어야 해요.</string>
+    <string name="route_toast_failed">경로를 바꾸지 못했어요. 다시 시도해 주세요.</string>
 </resources>

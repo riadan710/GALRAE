@@ -17,20 +17,29 @@ import com.galrae.app.ui.components.GalraeButton
 import com.galrae.app.ui.components.MeetupSummaryText
 import com.galrae.app.ui.components.GalraeButtonStyle
 import com.galrae.app.ui.theme.OutlineGray
+import com.galrae.app.ui.theme.TextSecondary
 
-/** Figma 하단 알림·확인 창의 내용. ModalBottomSheet 등 호스트에서 재사용한다. */
+/**
+ * Figma 하단 알림·확인 창의 내용. ModalBottomSheet 등 호스트에서 재사용한다.
+ *
+ * @param question null이면 질문 줄을 그리지 않는다
+ * @param detail 장소 이름 아래 한 줄 (주소 등). null·빈 값이면 생략
+ * @param cancelLeading 보조 버튼 앞 표시 (카운트다운 등)
+ */
 @Composable
 fun PlaceProposalPrompt(
     title: String,
     place: Place,
     summary: MeetSummary?,
-    question: String,
+    question: String?,
     confirmLabel: String,
     cancelLabel: String,
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    detail: String? = null,
+    cancelLeading: (@Composable () -> Unit)? = null,
 ) {
     Column(modifier.padding(horizontal = 36.dp, vertical = 32.dp), verticalArrangement = Arrangement.spacedBy(32.dp)) {
         Text(title, style = MaterialTheme.typography.headlineSmall)
@@ -39,15 +48,20 @@ fun PlaceProposalPrompt(
                 Image(painterResource(R.drawable.ic_place), null, Modifier.size(40.dp))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(place.name, style = MaterialTheme.typography.titleLarge)
+                    detail?.takeIf { it.isNotBlank() }?.let {
+                        Text(it, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                    }
                     summary?.let {
                         MeetupSummaryText(it)
                     }
                 }
             }
         }
-        Text(question, style = MaterialTheme.typography.titleLarge, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+        question?.let {
+            Text(it, style = MaterialTheme.typography.titleLarge, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            GalraeButton(cancelLabel, onCancel, Modifier.weight(1f), GalraeButtonStyle.SECONDARY)
+            GalraeButton(cancelLabel, onCancel, Modifier.weight(1f), GalraeButtonStyle.SECONDARY, leading = cancelLeading)
             GalraeButton(confirmLabel, onConfirm, Modifier.weight(1f), enabled = enabled)
         }
     }

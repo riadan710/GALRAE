@@ -16,7 +16,11 @@ import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
 import com.galrae.app.ui.group.GroupScreen
+import com.galrae.app.ui.route.RouteFlowOverlay
 import com.galrae.app.service.KeepAliveService
 import com.galrae.app.ui.theme.GALRAETheme
 
@@ -49,7 +53,12 @@ class MainActivity : ComponentActivity() {
         }, ContextCompat.RECEIVER_NOT_EXPORTED)
         setContent {
             GALRAETheme {
-                GroupScreen((application as GalraeApp).group, lifecycle, onExit = { finish() }, speech = speech)
+                val app = application as GalraeApp
+                Box(Modifier.fillMaxSize()) {
+                    GroupScreen(app.group, lifecycle, onExit = { finish() }, speech = speech)
+                    // Flow 1 하단 확인 시트·토스트. 메인·상세 어느 화면이든 위에 뜬다
+                    RouteFlowOverlay(app.routeFlow, app.group)
+                }
             }
         }
 
