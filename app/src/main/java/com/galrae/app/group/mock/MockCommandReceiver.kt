@@ -42,6 +42,9 @@ import kotlinx.coroutines.launch
  * | `my-wp-replace` | `1|2:장소` | **내 차** 경유지 1·2 교체 |
  * | `sheet-primary` | — | 떠 있는 확인 시트의 주 버튼 (제안하기 / 변경하기). 화면 없이 로직 확인용 |
  * | `sheet-secondary` | — | 떠 있는 확인 시트의 보조 버튼 (혼자 가기 / 그대로 가기) |
+ * | `sheet-replace` | `1|2` | 떠 있는 교체 시트에서 내 경유지 1·2의 [교체] |
+ * | `follow` | `장소` | 상세 화면 [여기로 가기] (확인 시트) |
+ * | `join-wp` | `멤버:장소` | 상세 화면 [같이 들르기] (그 멤버의 경유지, 꽉 찼으면 교체 시트) |
  *
  * 멤버는 이름(언니네·부모님) 또는 id(sister·parents), 장소는 [MockScenario.demoPlaces]의 이름.
  * 예: `--es c propose-dest --es a "경포해수욕장"`, `--es c soc --es a "부모님:15"`
@@ -147,6 +150,18 @@ class MockCommandReceiver(
             }
             "sheet-primary" -> routeFlow.onPrimary(routeFlow.sheet.value?.id ?: error("떠 있는 시트 없음"))
             "sheet-secondary" -> routeFlow.onSecondary(routeFlow.sheet.value?.id ?: error("떠 있는 시트 없음"))
+            "sheet-replace" -> {
+                val index = arg.toIntOrNull()?.minus(1) ?: error("슬롯은 1 또는 2")
+                routeFlow.onReplace(routeFlow.sheet.value?.id ?: error("떠 있는 시트 없음"), index)
+            }
+            "follow" -> routeFlow.followDestination(place(arg))
+            "join-wp" -> {
+                val (member, place) = memberAndPlace(arg, defaultMember = null)
+                // 화면과 같게 그 멤버 경유지의 값(장소·도착 시각)을 쓴다
+                val wp = mock.members.value.find { it.id == member }?.nav?.waypoints
+                    ?.find { it.place.isSamePlace(place) } ?: error("${member}의 경유지에 '${place.name}' 없음")
+                routeFlow.joinWaypoint(wp.place, member, wp.etaAt)
+            }
             else -> error("모르는 명령")
         }
     }

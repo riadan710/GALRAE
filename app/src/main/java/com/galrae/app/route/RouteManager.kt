@@ -56,7 +56,7 @@ class RouteManager(
     private val _state = MutableStateFlow(NavState())
 
     /** 화면·그룹 공유용 내 경로. 내비 원본에 "방금 보낸 경로"를 반영한 값이다. */
-    val state: StateFlow<NavState> = _state.asStateFlow()
+    override val state: StateFlow<NavState> = _state.asStateFlow()
 
     private val _userDestinationChanges = MutableSharedFlow<Place>(extraBufferCapacity = 8)
 
@@ -108,7 +108,9 @@ class RouteManager(
      *  보내기 전에 사용자에게 순서를 확인받는다. 거리는 `requestTrip`(내 위치 → 각 경유지)으로 비교.
      *  addWaypoint·replaceWaypoint 둘 다 해당 (11/15 팀 결정, 자동 정렬은 하지 않음)
      */
-    fun addWaypoint(place: Place): AddResult {
+    override fun addWaypoint(place: Place): AddResult {
+        // 좌표 없는 장소는 내비에 보낼 수 없다 (보내면 조용히 빠지므로 여기서 막는다)
+        if (!place.hasCoord) return AddResult.Failed(Reason.NO_COORD)
         val destination = currentDestination() ?: return AddResult.Failed(Reason.NO_ROUTE)
         val waypoints = currentWaypoints()
         if (waypoints.any { it.isSamePlace(place) }) return AddResult.AlreadyIncluded
@@ -120,7 +122,8 @@ class RouteManager(
     }
 
     /** [index](0 = 경유지 1, 1 = 경유지 2)번 경유지를 [place]로 바꾼다 (교체 시트). */
-    fun replaceWaypoint(index: Int, place: Place): RouteResult {
+    override fun replaceWaypoint(index: Int, place: Place): RouteResult {
+        if (!place.hasCoord) return RouteResult.Failed(Reason.NO_COORD)
         val destination = currentDestination() ?: return RouteResult.Failed(Reason.NO_ROUTE)
         val waypoints = currentWaypoints()
         if (index !in waypoints.indices) return RouteResult.Failed(Reason.BAD_INDEX)
@@ -205,7 +208,8 @@ class RouteManager(
                 lastDestination = n.destination
                 Log.i(TAG, "confirmed ${n.destination?.name}")
             }
-            _state.value = n
+            // 내비 값은 경유지 좌표가 0.0이라 기억해 둔 좌표로 채운다 (그룹에 올린 내 경유지를 다른 멤버가 같이 들를 수 있게)
+            _state.value = n.withKnownCoords()
             if (!loaded) return
             if (!baselineSet) {
                 // 앱 시작 때 이미 설정돼 있던 경로는 변경이 아니다
@@ -234,6 +238,11 @@ class RouteManager(
         placeStore.save(places)
     }
 
+    private fun NavState.withKnownCoords(): NavState = copy(
+        destination = destination?.let(::withKnownCoord),
+        waypoints = waypoints.map { it.copy(place = withKnownCoord(it.place)) },
+    )
+
     private fun withKnownCoord(place: Place): Place =
         if (place.hasCoord) place else knownPlaces[place.name] ?: place
 
@@ -260,7 +269,7 @@ class RouteManager(
         /** 안내 중인 경로가 없음 (경유지는 목적지가 있어야 넣을 수 있음). */
         NO_ROUTE,
 
-        /** 목적지 좌표를 모름. */
+        /** 목적지 또는 넣으려는 경유지의 좌표를 모름. */
         NO_COORD,
         BAD_INDEX,
         SEND_FAILED,

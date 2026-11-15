@@ -1,5 +1,6 @@
 package com.galrae.app.proposal
 
+import com.galrae.app.car.navi.NavWaypoint
 import com.galrae.app.group.model.Proposal
 import com.galrae.app.place.Place
 
@@ -20,4 +21,31 @@ sealed interface RouteSheet {
      * [그대로 가기 ⑤] [목적지 변경하기]. 수락하면 내 경유지는 유지한 채 목적지만 바꾼다.
      */
     data class DestinationProposed(val proposal: Proposal) : RouteSheet
+
+    /**
+     * 해당 목적지로 변경할까요? + 장소 카드 (5-2 여기로 가기).
+     * [그대로 가기 ⑤] [목적지 변경하기]. 변경하면 경유지는 유지한다.
+     */
+    data class FollowDestination(val place: Place) : RouteSheet
+
+    /**
+     * 경유지는 2곳까지 넣을 수 있어요 / 기존 경유지와 교체할까요? (5-3 교체 시트).
+     * 새 경유지 카드 + 내 경유지 1·2 목록(각각 [교체]) + [그대로 가기 ⑤].
+     * 주 버튼이 없고, [교체]는 [RouteFlowController.onReplace]로 처리한다.
+     *
+     * @param place 새로 넣으려는 경유지
+     * @param origin 새 경유지 카드에 보여줄 출처 ("{이름}의 경유지 · 2:23 PM 도착")
+     * @param current 시트를 띄운 시점의 내 경유지 (도착 시각·남은 거리 표시용, null이면 계산 중)
+     */
+    data class ReplaceWaypoint(
+        val place: Place,
+        val origin: WaypointOrigin,
+        val current: List<NavWaypoint>,
+    ) : RouteSheet
+}
+
+/** 넣으려는 경유지가 어디서 왔는지 (교체 시트의 새 경유지 카드 문구용). */
+sealed interface WaypointOrigin {
+    /** 멤버 상세 화면의 [같이 들르기]. [etaAt]은 그 멤버의 도착 예정 시각. */
+    data class MemberWaypoint(val memberId: String, val etaAt: Long?) : WaypointOrigin
 }

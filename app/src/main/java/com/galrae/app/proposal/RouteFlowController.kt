@@ -8,6 +8,7 @@ import com.galrae.app.group.model.ProposalKind
 import com.galrae.app.group.model.ProposalStatus
 import com.galrae.app.place.Place
 import com.galrae.app.route.RouteControl
+import com.galrae.app.route.RouteManager.AddResult
 import com.galrae.app.route.RouteManager.RouteResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -22,6 +23,8 @@ import kotlinx.coroutines.launch
  *
  * - 내비에서 목적지를 바꾸면 → [RouteSheet.DestinationChanged]. 제안하기 = 그룹에 목적지 제안 (docs 5-1)
  * - 다른 멤버의 목적지 제안이 오면 → [RouteSheet.DestinationProposed]. 변경하기 = 내 내비 목적지 변경 + 수락 응답
+ * - 상세 화면 [여기로 가기] → [followDestination] → [RouteSheet.FollowDestination]. 변경하기 = 내 목적지 변경 (5-2)
+ * - 상세 화면 [같이 들르기] → [joinWaypoint]. 자리가 있으면 바로 추가, 꽉 찼으면 [RouteSheet.ReplaceWaypoint] (5-3)
  *
  * 수락한 차량만 자기 내비를 바꾼다. 서버나 다른 차량이 대신 바꾸지 않는다 (docs 9-2).
  */
@@ -51,8 +54,31 @@ class RouteFlowController(
         scope.launch { group.proposals.collect(::onProposals) }
     }
 
-    /** 주 버튼 (목적지 제안하기 / 목적지 변경하기). */
+    // ── 화면에서 부르는 동작 ─────────────────────────────────────
+
+    /** 멤버 상세 화면의 [여기로 가기]. 확인 시트를 띄운다. 이미 내 목적지면 아무것도 하지 않는다. */
+    fun followDestination(place: Place) {
+        if (route.state.value.destination?.isSamePlace(place) == true) {
+            log("follow ${place.name}: already my destination")
+            return
+        }
+        log("sheet: follow destination → ${place.name}")
+        sheets.show(RouteSheet.FollowDestination(place))
+    }
+
+    /**
+     * 멤버 상세 화면의 [같이 들르기]. 확인 없이 바로 내 경유지에 넣는다 (docs 5-3).
+     * 경유지가 꽉 찼으면 교체 시트를 띄운다.
+     *
+     * @param memberId 그 경유지를 가진 멤버
+     * @param etaAt 그 멤버의 그 경유지 도착 예정 시각 (교체 시트 카드 문구용)
+     */
+    fun joinWaypoint(place: Place, memberId: String, etaAt: Long?) =
+        addWaypoint(place, WaypointOrigin.MemberWaypoint(memberId, etaAt))
+
+    /** 주 버튼 (목적지 제안하기 / 목적지 변경하기). 교체 시트에는 주 버튼이 없다 → [onReplace]. */
     fun onPrimary(sheetId: Long) {
+        if (sheets.current.value?.content is RouteSheet.ReplaceWaypoint) return
         when (val s = sheets.close(sheetId) ?: return) {
             is RouteSheet.DestinationChanged -> {
                 val p = group.sendProposal(ProposalKind.DESTINATION, s.place)
@@ -60,6 +86,33 @@ class RouteFlowController(
                 emit(RouteFlowEvent.DestinationProposed(s.place))
             }
             is RouteSheet.DestinationProposed -> acceptDestination(s.proposal)
+            is RouteSheet.FollowDestination -> changeDestination(s.place)
+            is RouteSheet.ReplaceWaypoint -> Unit
+        }
+    }
+
+    /** 교체 시트의 [교체]. [index]는 시트에 보여준 내 경유지 목록의 자리 (0 = 경유지 1). */
+    fun onReplace(sheetId: Long, index: Int) {
+        val shown = sheets.current.value
+        if (shown?.id != sheetId || shown.content !is RouteSheet.ReplaceWaypoint) return
+        val s = sheets.close(sheetId) as? RouteSheet.ReplaceWaypoint ?: return
+        val old = s.current.getOrNull(index)?.place ?: return
+        // 시트가 떠 있는 동안 경로가 바뀌었으면(내비에서 직접 수정 등) 엉뚱한 자리를 바꾸지 않는다
+        val now = route.state.value.waypoints.getOrNull(index)?.place
+        if (now == null || !now.isSamePlace(old)) {
+            log("replace aborted: waypoint ${index + 1} changed (${old.name} → ${now?.name})")
+            emit(RouteFlowEvent.Failed)
+            return
+        }
+        when (val r = route.replaceWaypoint(index, s.place)) {
+            is RouteResult.Sent -> {
+                log("waypoint ${index + 1} replaced ${old.name} → ${s.place.name}, dropped=${r.dropped.map { it.name }}")
+                emit(RouteFlowEvent.WaypointReplaced(old, s.place, r.dropped))
+            }
+            is RouteResult.Failed -> {
+                log("replace failed: ${r.reason}")
+                emit(RouteFlowEvent.Failed)
+            }
         }
     }
 
@@ -79,6 +132,43 @@ class RouteFlowController(
             is RouteSheet.DestinationProposed -> {
                 if (byUser) group.respond(s.proposal.id, Answer.DECLINED)
                 log("keep route, proposal ${s.proposal.id} (byUser=$byUser)")
+            }
+            is RouteSheet.FollowDestination -> log("keep destination, not following ${s.place.name} (byUser=$byUser)")
+            is RouteSheet.ReplaceWaypoint -> log("keep waypoints, not adding ${s.place.name} (byUser=$byUser)")
+        }
+    }
+
+    private fun addWaypoint(place: Place, origin: WaypointOrigin) {
+        when (val r = route.addWaypoint(place)) {
+            is AddResult.Added -> {
+                log("waypoint added ${place.name}, dropped=${r.route.dropped.map { it.name }}")
+                emit(RouteFlowEvent.WaypointAdded(place, r.route.dropped))
+            }
+            AddResult.AlreadyIncluded -> {
+                log("waypoint ${place.name} already included")
+                emit(RouteFlowEvent.WaypointAlreadyIncluded(place))
+            }
+            is AddResult.NeedReplace -> {
+                log("sheet: replace waypoint → ${place.name}, current=${r.current.map { it.name }}")
+                sheets.show(RouteSheet.ReplaceWaypoint(place, origin, route.state.value.waypoints))
+            }
+            is AddResult.Failed -> {
+                log("add waypoint ${place.name} failed: ${r.reason}")
+                emit(RouteFlowEvent.Failed)
+            }
+        }
+    }
+
+    /** 여기로 가기 수락. 경유지는 유지한다. */
+    private fun changeDestination(place: Place) {
+        when (val r = route.setDestination(place)) {
+            is RouteResult.Sent -> {
+                log("follow → destination ${place.name}, dropped=${r.dropped.map { it.name }}")
+                emit(RouteFlowEvent.DestinationChanged(place, r.dropped))
+            }
+            is RouteResult.Failed -> {
+                log("follow ${place.name} failed: ${r.reason}")
+                emit(RouteFlowEvent.Failed)
             }
         }
     }
@@ -138,6 +228,15 @@ sealed interface RouteFlowEvent {
     /** 내 목적지를 바꿈. [dropped]는 좌표를 몰라 빠진 경유지 ("다시 넣어야 해요" 안내). */
     data class DestinationChanged(val place: Place, val dropped: List<Place>) : RouteFlowEvent
 
-    /** 내비에 경로를 보내지 못함. */
+    /** 경유지를 추가함 (같이 들르기). 토스트 "경유지가 추가됐어요." */
+    data class WaypointAdded(val place: Place, val dropped: List<Place>) : RouteFlowEvent
+
+    /** 이미 내 경유지에 있어 아무것도 하지 않음. */
+    data class WaypointAlreadyIncluded(val place: Place) : RouteFlowEvent
+
+    /** 교체 시트에서 [old]를 [new]로 바꿈. */
+    data class WaypointReplaced(val old: Place, val new: Place, val dropped: List<Place>) : RouteFlowEvent
+
+    /** 내비에 경로를 보내지 못함 (경로 없음, 좌표 없음, 시트가 떠 있는 동안 경로가 바뀜 등). */
     data object Failed : RouteFlowEvent
 }
