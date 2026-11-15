@@ -1,8 +1,11 @@
 package com.galrae.app.ui.group
 
 import com.galrae.app.speech.SpeechController
+import com.galrae.app.ui.speech.MessageDeliveryToast
+import com.galrae.app.group.model.TextMessage
 import com.galrae.app.ui.speech.SpeechMessageFooter
 import com.galrae.app.speech.SpeechState
+import com.galrae.app.speech.TtsPlaybackStatus
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -108,6 +111,35 @@ fun GroupScreen(group: GroupRepository, lifecycle: Lifecycle, onExit: () -> Unit
         }
     }
     BackHandler(enabled = speechState.listening || messageActive) { cancelMessage() }
+    val messageFlow = remember(group, lifecycle) { group.messages.flowWithLifecycle(lifecycle) }
+    val messages by messageFlow.collectAsState(group.messages.value)
+    var lastSentNoticeId by rememberSaveable { mutableStateOf(group.messages.value.lastOrNull { it.fromId == group.myId }?.id) }
+    var deliveryMessage by remember { mutableStateOf<TextMessage?>(null) }
+    LaunchedEffect(messages, speechState.playback) {
+        val playback = speechState.playback
+        val playing = if (playback?.status == TtsPlaybackStatus.PREPARING || playback?.status == TtsPlaybackStatus.PLAYING)
+            messages.find { it.id == playback.messageId } else null
+        val sent = messages.lastOrNull { it.fromId == group.myId }
+        if (sent == null) lastSentNoticeId = null
+        if (playing != null) deliveryMessage = playing
+        else if (sent != null && sent.id != lastSentNoticeId) {
+            lastSentNoticeId = sent.id
+            deliveryMessage = sent
+        } else if (deliveryMessage?.let { shown -> messages.none { it.id == shown.id } ||
+                (shown.fromId != group.myId && shown.id != playback?.messageId) } == true) deliveryMessage = null
+    }
+    deliveryMessage?.let { delivered ->
+        members.find { it.id == delivered.fromId }?.let { sender ->
+            MessageDeliveryToast(delivered, sender.profile, isMe = delivered.fromId == group.myId,
+                playback = speechState.playback?.takeIf { it.messageId == delivered.id },
+                onRead = if (delivered.isIncomingFor(group.myId)) ({
+                    if (speechState.readingId == delivered.id) speech?.stopAllReading() else speech?.replay(delivered)
+                    Unit
+                }) else null) {
+                if (deliveryMessage?.id == delivered.id) deliveryMessage = null
+            }
+        }
+    }
     val footer: @Composable () -> Unit = {
         SpeechMessageFooter(members, group.myId, speechState,
             onMeetup = { cancelMessage(); showMeetup = true }, onMessage = messageAction)

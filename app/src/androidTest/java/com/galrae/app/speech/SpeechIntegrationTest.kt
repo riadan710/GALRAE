@@ -17,6 +17,31 @@ class SpeechIntegrationTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
     private val group get() = (compose.activity.application as GalraeApp).mockGroup
 
+    @Test fun incomingTextUsesRealTtsAndDuplicateDoesNotCreateMessage() {
+        compose.runOnIdle {
+            group.reset()
+            group.receiveText("parents", "다음 휴게소에서 만나요", id = "tts-test")
+        }
+        compose.waitUntil(10_000) { compose.activity.speech.state.value.readingId == "tts-test" }
+        compose.waitUntil(2_000) { compose.onAllNodesWithTag("message_delivery_toast").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("부모님의 음성 메시지").assertExists()
+        compose.onNodeWithTag("text_message").assertDoesNotExist()
+        compose.waitUntil(10_000) { compose.activity.speech.state.value.playback?.status == TtsPlaybackStatus.PLAYING }
+        compose.onNodeWithTag("delivery_playback_status", useUnmergedTree = true).assertTextContains("/ 15초", substring = true)
+        compose.waitUntil(25_000) { compose.activity.speech.state.value.readingId == null }
+        compose.waitUntil(2_000) { compose.onAllNodesWithTag("message_delivery_toast").fetchSemanticsNodes().isEmpty() }
+        compose.runOnIdle {
+            assertEquals(TtsPlaybackStatus.COMPLETED, compose.activity.speech.state.value.playback?.status)
+            assertTrue((compose.activity.speech.state.value.playback?.durationMs ?: 0) > 0)
+            assertNull(compose.activity.speech.state.value.error)
+            group.receiveText("parents", "다음 휴게소에서 만나요", id = "tts-test")
+            assertEquals(1, group.messages.value.size)
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("text_message").assertDoesNotExist()
+        compose.runOnIdle { assertNull(compose.activity.speech.state.value.readingId) }
+    }
+
     @Test fun messagesForOtherMemberAreNotReadOrShown() {
         compose.runOnIdle {
             group.reset()
@@ -158,6 +183,51 @@ class SpeechIntegrationTest {
             assertEquals(0, compose.activity.speech.state.value.remainingSeconds)
             assertTrue(android.os.SystemClock.elapsedRealtime() - startedAt >= 14_500)
         }
+    }
+
+    @Test fun sentReceiptDoesNotPretendToKnowRemotePlayback() {
+        lateinit var sent: com.galrae.app.group.model.TextMessage
+        compose.runOnIdle {
+            group.reset()
+            sent = group.sendText("나 강릉역에서 동생 픽업해서 갈게")
+        }
+        compose.onNodeWithTag("message_delivery_toast").assertExists()
+        compose.onNodeWithText("나의 음성 메시지").assertExists()
+        compose.onNodeWithTag("delivery_playback_status").assertTextEquals("전달 완료")
+        compose.waitUntil(6_000) {
+            compose.onAllNodesWithTag("message_delivery_toast").fetchSemanticsNodes().isEmpty()
+        }
+        compose.runOnIdle { group.receiveText(group.myId, sent.text, id = sent.id) }
+        compose.waitForIdle()
+        compose.onNodeWithTag("message_delivery_toast").assertDoesNotExist()
+    }
+
+
+    @Test fun toastLastsBeyondFiveSecondsUntilTtsStops() {
+        compose.runOnIdle { group.reset(); group.receiveText("parents", "다음 휴게소에서 만나서 잠깐 쉬었다가 함께 강릉으로 이동해요. 도착하면 알려 주세요.") }
+        compose.waitUntil(10_000) { compose.activity.speech.state.value.playback?.status == TtsPlaybackStatus.PLAYING }
+        Thread.sleep(5_200)
+        compose.runOnIdle { assertNotNull(compose.activity.speech.state.value.readingId) }
+        compose.onNodeWithTag("message_delivery_toast").assertExists().performClick()
+        compose.waitUntil(2_000) { compose.onAllNodesWithTag("message_delivery_toast").fetchSemanticsNodes().isEmpty() }
+        compose.runOnIdle {
+            assertNull(compose.activity.speech.state.value.readingId)
+            assertEquals(TtsPlaybackStatus.STOPPED, compose.activity.speech.state.value.playback?.status)
+        }
+    }
+
+    @Test fun toastFollowsCurrentTtsInsteadOfNewestQueuedText() {
+        compose.runOnIdle {
+            group.reset()
+            group.receiveText("parents", "첫 번째 메시지를 읽고 있어요", id = "first-playback")
+            group.receiveText("sister", "두 번째 메시지를 읽고 있어요", id = "second-playback")
+        }
+        compose.waitUntil(10_000) { compose.activity.speech.state.value.readingId == "first-playback" }
+        compose.onNodeWithText("첫 번째 메시지를 읽고 있어요").assertExists()
+        compose.onNodeWithText("두 번째 메시지를 읽고 있어요").assertDoesNotExist()
+        compose.waitUntil(20_000) { compose.activity.speech.state.value.readingId == "second-playback" }
+        compose.onNodeWithText("두 번째 메시지를 읽고 있어요").assertExists()
+        compose.runOnIdle { compose.activity.speech.stopAllReading() }
     }
 
 }
