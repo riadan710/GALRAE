@@ -8,6 +8,7 @@ import com.galrae.app.car.energy.EnergySource
 import com.galrae.app.car.energy.EvBatterySource
 import com.galrae.app.car.navi.NaviSource
 import com.galrae.app.car.navi.NavState
+import com.galrae.app.place.Place
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -40,6 +41,9 @@ class MyCar(context: Context) {
     //  - 쓰는 곳: 같이 들르기 "여기서 Nkm", 중간에 모이기·Flow 2 추천 엔진의 거리 계산
     //  - 에뮬은 내비가 판교 고정이고 FusedLocation만 `adb emu geo fix` / pleos-spike `tools/nmea_drive.py`로 움직인다 (docs 1-3).
     //    둘이 어긋나면 내비 기준 남은 거리·ETA와 앱 위치가 안 맞으니 시연 때는 판교 근처에 둔다
+
+    /** 내비 경로를 목적지 + 경유지로 통째로 설정한다. 직접 부르지 말고 RouteManager를 거친다 (경유지 유지·좌표 보관). */
+    fun requestRoute(destination: Place, waypoints: List<Place>) = navi.requestRoute(destination, waypoints)
 
     fun start() {
         navi.start()

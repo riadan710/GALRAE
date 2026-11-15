@@ -12,6 +12,7 @@ import com.galrae.app.meetup.MeetupRecommender
 import com.galrae.app.meetup.MeetupResult
 import com.galrae.app.meetup.PlaceType
 import com.galrae.app.place.Place
+import com.galrae.app.route.RouteManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -35,12 +36,16 @@ import kotlinx.coroutines.launch
  * | `soc` | `멤버:퍼센트` | 멤버 배터리·연료 잔량 변경 (20% 이하면 충전/주유 필요) |
  * | `long-drive` | `멤버` | 해당 가상 차량을 2시간 연속 운전 상태로 설정 |
  * | `recommend` | `cafe/food/rest/charger/fuel` | 카카오 검색·추정 추천 (선택: trigger, member extras) |
+ * | `my-dest` | `장소` | **내 차** 목적지 변경 (경유지 유지). RouteManager 확인용 |
+ * | `my-wp` | `장소` | **내 차** 경유지 추가 (꽉 차면 교체 필요 로그) |
+ * | `my-wp-replace` | `1|2:장소` | **내 차** 경유지 1·2 교체 |
  *
  * 멤버는 이름(언니네·부모님) 또는 id(sister·parents), 장소는 [MockScenario.demoPlaces]의 이름.
  * 예: `--es c propose-dest --es a "경포해수욕장"`, `--es c soc --es a "부모님:15"`
  */
 class MockCommandReceiver(
     private val mock: MockGroupRepository,
+    private val route: RouteManager,
     private val recommender: MeetupRecommender,
     private val onRecommendation: (MeetupResult?) -> Unit,
 ) : BroadcastReceiver() {
@@ -129,6 +134,13 @@ class MockCommandReceiver(
                 val percent = value.toIntOrNull()?.takeIf { it in 0..100 } ?: error("퍼센트는 0~100")
                 mock.setEnergy(memberId(name), percent)
             }
+            "my-dest" -> Log.i(TAG, "my-dest → ${route.setDestination(place(arg))}")
+            "my-wp" -> Log.i(TAG, "my-wp → ${route.addWaypoint(place(arg))}")
+            "my-wp-replace" -> {
+                val (slot, name) = split(arg) ?: error("1|2:장소 형식이어야 함")
+                val index = slot.toIntOrNull()?.minus(1) ?: error("슬롯은 1 또는 2")
+                Log.i(TAG, "my-wp-replace → ${route.replaceWaypoint(index, place(name))}")
+            }
             else -> error("모르는 명령")
         }
     }
@@ -137,11 +149,11 @@ class MockCommandReceiver(
     private fun memberAndPlace(arg: String, defaultMember: String?): Pair<String, Place> {
         val parts = split(arg)
         val member = parts?.first?.let(::memberId) ?: defaultMember ?: error("멤버:장소 형식이어야 함")
-        val placeName = parts?.second ?: arg
-        val place = MockScenario.findPlace(placeName)
-            ?: error("모르는 장소 '$placeName' (가능: ${MockScenario.demoPlaces.joinToString { it.name }})")
-        return member to place
+        return member to place(parts?.second ?: arg)
     }
+
+    private fun place(name: String): Place = MockScenario.findPlace(name)
+        ?: error("모르는 장소 '$name' (가능: ${MockScenario.demoPlaces.joinToString { it.name }})")
 
     private fun split(arg: String): Pair<String, String>? {
         val i = arg.indexOf(':')

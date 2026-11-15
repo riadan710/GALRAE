@@ -1,7 +1,12 @@
 package com.galrae.app.car.navi
 
+import ai.pleos.playground.navi.constants.RouteOption
+import ai.pleos.playground.navi.constants.WaypointIndex
 import ai.pleos.playground.navi.data.DestinationInfo
+import ai.pleos.playground.navi.data.RequestWaypointInfo
+import ai.pleos.playground.navi.data.RouteInfo
 import ai.pleos.playground.navi.data.RouteStartInfo
+import ai.pleos.playground.navi.data.RouteWithWaypointsRequest
 import ai.pleos.playground.navi.data.WaypointChangedInfo
 import ai.pleos.playground.navi.data.WaypointInfo
 import ai.pleos.playground.navi.helper.NaviHelper
@@ -58,6 +63,43 @@ class NaviSource(context: Context) {
             navi.removeListener(listener)
             navi.release()
         }
+    }
+
+    /**
+     * 목적지와 경유지(최대 2개, 순서대로 1·2)를 내비에 한 번에 설정한다. 모든 장소에 좌표가 있어야 한다.
+     * 기존 경로·경유지는 이 내용으로 통째로 바뀐다. 결과는 onRouteStarted(약 8초 뒤) → [state] 갱신으로 알 수 있다.
+     * 경로 규칙(경유지 유지·교체)은 [com.galrae.app.route.RouteManager]가 정하고 여기선 보내기만 한다.
+     */
+    fun requestRoute(destination: Place, waypoints: List<Place>) {
+        require(waypoints.size <= 2) { "경유지는 2개까지" }
+        require(destination.hasCoord && waypoints.all { it.hasCoord }) { "좌표 없는 장소는 보낼 수 없음" }
+        Log.i(TAG, "requestRoute ${destination.name} wp=${waypoints.map { it.name }}")
+        navi.requestRouteWithWaypoints(
+            RouteWithWaypointsRequest(
+                destination = RouteInfo(
+                    latitude = destination.lat!!,
+                    longitude = destination.lon!!,
+                    displayLatitude = null,
+                    displayLongitude = null,
+                    poiName = destination.name,
+                    poiId = "",
+                    address = destination.address,
+                    poiSubId = "0",
+                    routeOption = RouteOption.RECOMMENDED,
+                ),
+                waypoints = waypoints.mapIndexed { i, wp ->
+                    RequestWaypointInfo(
+                        latitude = wp.lat!!,
+                        longitude = wp.lon!!,
+                        poiName = wp.name,
+                        waypointIndex = if (i == 0) WaypointIndex.FIRST else WaypointIndex.SECOND,
+                        poiId = "",
+                        address = wp.address,
+                        poiSubId = "0",
+                    )
+                },
+            ),
+        )
     }
 
     /** 목적지·경유지를 다시 조회한다. 결과는 onDestinationInfo / onWayPointInfo로 들어온다. */

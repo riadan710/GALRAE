@@ -13,6 +13,7 @@ import com.galrae.app.meetup.AutoStopProposer
 import com.galrae.app.meetup.KakaoPlaceSearch
 import com.galrae.app.meetup.MeetupRecommender
 import com.galrae.app.meetup.MeetupResult
+import com.galrae.app.route.RouteManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.CoroutineScope
@@ -32,6 +33,10 @@ class GalraeApp : Application() {
     lateinit var myCar: MyCar
         private set
 
+    /** 내 차 경로(목적지·경유지)를 바꿀 때는 이것만 쓴다 (docs 5-0). */
+    lateinit var route: RouteManager
+        private set
+
     /** 1차는 앱 안 가상 멤버. 시연용 adb 명령이 Mock 전용 조작을 쓸 수 있게 구현 타입으로도 들고 있는다. */
     lateinit var mockGroup: MockGroupRepository
         private set
@@ -46,8 +51,9 @@ class GalraeApp : Application() {
     override fun onCreate() {
         super.onCreate()
         myCar = MyCar(this).also { it.start() }
+        route = RouteManager(nav = { myCar.nav.value }, send = myCar::requestRoute)
         mockGroup = MockGroupRepository()
-        MockCommandReceiver(mockGroup, meetupRecommender) { _meetupResult.value = it }.register(this)
+        MockCommandReceiver(mockGroup, route, meetupRecommender) { _meetupResult.value = it }.register(this)
         publishMyState()
         startAutoStopProposals()
     }
