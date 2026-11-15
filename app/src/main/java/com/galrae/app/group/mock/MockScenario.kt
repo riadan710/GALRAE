@@ -30,6 +30,21 @@ internal object MockScenario {
     val GANGNEUNG_STATION = Place("강릉역", "강릉시 교동", 37.764, 128.899)
     val MUNMAK_REST_AREA = Place("문막휴게소", "원주시 문막읍", 37.330, 127.808, listOf("충전소", "식당", "편의점"))
 
+    /**
+     * adb 명령에서 이름으로 부를 수 있는 시연 장소 (좌표 근사).
+     * Flow 2 추천 후보(휴게소 전체 목록)는 추천 엔진 쪽 데이터로 따로 둔다.
+     */
+    val demoPlaces: List<Place> = listOf(
+        GANGNEUNG_STATION,
+        MUNMAK_REST_AREA,
+        Place("경포해수욕장", "강릉시 안현동", 37.806, 128.908),
+        Place("강릉중앙시장", "강릉시 성남동", 37.754, 128.898),
+        Place("횡성휴게소", "횡성군 공근면", 37.512, 127.990, listOf("충전소", "식당", "편의점")),
+        Place("평창휴게소", "평창군 용평면", 37.583, 128.391, listOf("충전소", "식당")),
+    )
+
+    fun findPlace(name: String): Place? = demoPlaces.find { it.name == name }
+
     val meProfile = Profile(name = "나", initial = "나", color = 0xFF4F8EF7)
 
     /** 가상 차량이 달리는 방식. [origin]은 위치 보간 출발점. */

@@ -85,7 +85,10 @@ class MockGroupRepository : GroupRepository {
 
     // ── 시연 조작 (adb 명령에서 부른다) ───────────────────────────
 
-    /** 가상 멤버 [fromId]가 제안을 보낸 것처럼 만든다. 다른 가상 멤버도 자동으로 응답한다. */
+    /**
+     * 가상 멤버 [fromId]가 제안을 보낸 것처럼 만든다. 다른 가상 멤버도 자동으로 응답한다.
+     * 제안한 멤버 자신도 그 장소로 경로를 바꾼다 (실제로는 내비에서 바꾼 뒤 제안하는 흐름, docs 5-1).
+     */
     fun proposeFrom(
         fromId: String,
         kind: ProposalKind,
@@ -93,21 +96,24 @@ class MockGroupRepository : GroupRepository {
         trigger: ProposalTrigger? = null,
         summary: MeetSummary? = null,
         toId: String? = null,
-    ): Proposal = createProposal(fromId, kind, place, trigger, summary, toId)
+    ): Proposal {
+        val proposal = createProposal(fromId, kind, place, trigger, summary, toId)
+        if (drives.containsKey(fromId)) applyAccepted(fromId, proposal)
+        return proposal
+    }
 
     /** 가상 멤버의 배터리·연료 잔량을 바꾼다. [LOW_ENERGY_PERCENT] 이하면 충전/주유 필요 상태가 된다. */
     fun setEnergy(memberId: String, percent: Int) {
         val now = System.currentTimeMillis()
         updateMember(memberId) { m ->
-            val type = m.energy?.type ?: EnergyType.EV
-            val lowStatus = if (type == EnergyType.EV) MemberStatus.ENERGY_LOW_EV else MemberStatus.ENERGY_LOW_FUEL
+            val energy = EnergyLevel(m.energy?.type ?: EnergyType.EV, percent)
             val status = when {
-                percent <= LOW_ENERGY_PERCENT -> lowStatus
-                m.status == lowStatus -> MemberStatus.MOVING
-                else -> m.status
+                // 경로 변경 칩이 떠 있으면 그대로 두고, 칩이 끝날 때 충전/주유 필요로 돌아간다 (advance)
+                m.status in TEMPORARY_STATUSES || m.status == MemberStatus.ARRIVED -> m.status
+                else -> m.copy(energy = energy).restingStatus()
             }
             m.copy(
-                energy = EnergyLevel(type, percent),
+                energy = energy,
                 status = status,
                 statusAt = if (status != m.status) now else m.statusAt,
             )
@@ -126,6 +132,26 @@ class MockGroupRepository : GroupRepository {
         _members.value = listOf(me) + cars.map { it.member }
         _proposals.value = emptyList()
         Log.i(TAG, "reset ${summary()}")
+    }
+
+    /** 가상 멤버가 혼자 목적지를 바꾼 것처럼 만든다 (목적지 그룹이 갈리는 "여기로 가기" 장면용). */
+    fun setDestination(memberId: String, place: Place) {
+        val now = System.currentTimeMillis()
+        updateMember(memberId) { it.changeDestination(place, now) }
+        Log.i(TAG, "dest $memberId=${place.name}")
+    }
+
+    /** 가상 멤버가 경유지를 추가한 것처럼 만든다 ("같이 들르기" 장면용). */
+    fun addWaypoint(memberId: String, place: Place) {
+        val now = System.currentTimeMillis()
+        updateMember(memberId) { it.addWaypoint(place, now) }
+        Log.i(TAG, "waypoint $memberId+=${place.name}")
+    }
+
+    /** 현재 상태를 로그로 남긴다. 시연 중 확인용. */
+    fun logState() {
+        Log.i(TAG, "state ${summary()}")
+        _proposals.value.forEach { Log.i(TAG, "state ${it.id} ${it.kind} from=${it.fromId} ${it.responses}") }
     }
 
     // ── 제안·응답 ────────────────────────────────────────────────
@@ -264,7 +290,7 @@ class MockGroupRepository : GroupRepository {
         val (status, statusAt) = when {
             newRemain == 0 -> MemberStatus.ARRIVED to now
             // 경로 변경류 칩은 잠깐만 보이고 이동중으로 돌아간다 (docs 3장)
-            status in TEMPORARY_STATUSES && now - statusAt > CHIP_SHOW_MS -> MemberStatus.MOVING to now
+            status in TEMPORARY_STATUSES && now - statusAt > CHIP_SHOW_MS -> restingStatus() to now
             else -> status to statusAt
         }
         return copy(
@@ -273,6 +299,13 @@ class MockGroupRepository : GroupRepository {
             status = status,
             statusAt = statusAt,
         )
+    }
+
+    /** 잠깐 뜨는 칩이 없을 때의 상태: 잔량이 기준 이하면 충전/주유 필요, 아니면 이동중. */
+    private fun Member.restingStatus(): MemberStatus {
+        val e = energy ?: return MemberStatus.MOVING
+        if (e.percent > LOW_ENERGY_PERCENT) return MemberStatus.MOVING
+        return if (e.type == EnergyType.EV) MemberStatus.ENERGY_LOW_EV else MemberStatus.ENERGY_LOW_FUEL
     }
 
     private fun updateMember(memberId: String, transform: (Member) -> Member) {

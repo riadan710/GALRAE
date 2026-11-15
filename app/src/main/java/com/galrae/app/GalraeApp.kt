@@ -3,6 +3,7 @@ package com.galrae.app
 import android.app.Application
 import com.galrae.app.car.MyCar
 import com.galrae.app.group.GroupRepository
+import com.galrae.app.group.mock.MockCommandReceiver
 import com.galrae.app.group.mock.MockGroupRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +33,7 @@ class GalraeApp : Application() {
         super.onCreate()
         myCar = MyCar(this).also { it.start() }
         mockGroup = MockGroupRepository()
+        MockCommandReceiver(mockGroup).register(this)
         publishMyState()
     }
 
