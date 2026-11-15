@@ -1,4 +1,4 @@
-package com.galrae.app.car
+package com.galrae.app.car.navi
 
 import com.galrae.app.place.Place
 
