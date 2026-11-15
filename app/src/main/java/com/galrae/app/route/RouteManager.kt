@@ -51,7 +51,7 @@ class RouteManager(
     private val send: (destination: Place, waypoints: List<Place>) -> Unit,
     private val placeStore: KnownPlaceStore,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-) {
+) : RouteControl {
 
     private val _state = MutableStateFlow(NavState())
 
@@ -61,7 +61,7 @@ class RouteManager(
     private val _userDestinationChanges = MutableSharedFlow<Place>(extraBufferCapacity = 8)
 
     /** 사용자가 내비에서 직접 바꾼 새 목적지. 우리 앱이 보낸 경로 변경은 들어오지 않는다. */
-    val userDestinationChanges: SharedFlow<Place> = _userDestinationChanges.asSharedFlow()
+    override val userDestinationChanges: SharedFlow<Place> = _userDestinationChanges.asSharedFlow()
 
     private val _routeFailures = MutableSharedFlow<Place>(extraBufferCapacity = 8)
 
@@ -97,7 +97,7 @@ class RouteManager(
     fun currentWaypoints(): List<Place> = _state.value.waypoints.map { withKnownCoord(it.place) }
 
     /** 목적지만 바꾸고 지금 경유지는 유지한다 (목적지 변경 제안 수락, 여기로 가기). */
-    fun setDestination(place: Place): RouteResult = sendRoute(place, currentWaypoints())
+    override fun setDestination(place: Place): RouteResult = sendRoute(place, currentWaypoints())
 
     /**
      * 경유지를 추가한다 (같이 들르기, 중간에 모이기·Flow 2 제안 수락).

@@ -13,6 +13,7 @@ import com.galrae.app.meetup.AutoStopProposer
 import com.galrae.app.meetup.KakaoPlaceSearch
 import com.galrae.app.meetup.MeetupRecommender
 import com.galrae.app.meetup.MeetupResult
+import com.galrae.app.proposal.RouteFlowController
 import com.galrae.app.route.PrefsKnownPlaceStore
 import com.galrae.app.route.RouteManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,6 +46,10 @@ class GalraeApp : Application() {
     /** 화면·Flow 로직은 이것만 쓴다. Firebase로 바꿀 때 여기만 바꾼다. */
     val group: GroupRepository get() = mockGroup
 
+    /** Flow 1 확인 시트와 그 처리 (목적지 변경 제안 등). 화면은 sheet를 그리고 버튼만 연결한다. */
+    lateinit var routeFlow: RouteFlowController
+        private set
+
     val meetupRecommender = MeetupRecommender(KakaoPlaceSearch(BuildConfig.KAKAO_REST_API_KEY)::search)
     private val _meetupResult = MutableStateFlow<MeetupResult?>(null)
     val meetupResult = _meetupResult.asStateFlow()
@@ -59,7 +64,8 @@ class GalraeApp : Application() {
             placeStore = PrefsKnownPlaceStore(this),
         )
         mockGroup = MockGroupRepository()
-        MockCommandReceiver(mockGroup, route, meetupRecommender) { _meetupResult.value = it }.register(this)
+        routeFlow = RouteFlowController(group, route, appScope)
+        MockCommandReceiver(mockGroup, route, routeFlow, meetupRecommender) { _meetupResult.value = it }.register(this)
         publishMyState()
         startAutoStopProposals()
     }

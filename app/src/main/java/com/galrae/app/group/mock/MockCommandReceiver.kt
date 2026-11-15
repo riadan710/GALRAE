@@ -12,6 +12,7 @@ import com.galrae.app.meetup.MeetupRecommender
 import com.galrae.app.meetup.MeetupResult
 import com.galrae.app.meetup.PlaceType
 import com.galrae.app.place.Place
+import com.galrae.app.proposal.RouteFlowController
 import com.galrae.app.route.RouteManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +40,8 @@ import kotlinx.coroutines.launch
  * | `my-dest` | `장소` | **내 차** 목적지 변경 (경유지 유지). RouteManager 확인용 |
  * | `my-wp` | `장소` | **내 차** 경유지 추가 (꽉 차면 교체 필요 로그) |
  * | `my-wp-replace` | `1|2:장소` | **내 차** 경유지 1·2 교체 |
+ * | `sheet-primary` | — | 떠 있는 확인 시트의 주 버튼 (제안하기 / 변경하기). 화면 없이 로직 확인용 |
+ * | `sheet-secondary` | — | 떠 있는 확인 시트의 보조 버튼 (혼자 가기 / 그대로 가기) |
  *
  * 멤버는 이름(언니네·부모님) 또는 id(sister·parents), 장소는 [MockScenario.demoPlaces]의 이름.
  * 예: `--es c propose-dest --es a "경포해수욕장"`, `--es c soc --es a "부모님:15"`
@@ -46,6 +49,7 @@ import kotlinx.coroutines.launch
 class MockCommandReceiver(
     private val mock: MockGroupRepository,
     private val route: RouteManager,
+    private val routeFlow: RouteFlowController,
     private val recommender: MeetupRecommender,
     private val onRecommendation: (MeetupResult?) -> Unit,
 ) : BroadcastReceiver() {
@@ -141,6 +145,8 @@ class MockCommandReceiver(
                 val index = slot.toIntOrNull()?.minus(1) ?: error("슬롯은 1 또는 2")
                 Log.i(TAG, "my-wp-replace → ${route.replaceWaypoint(index, place(name))}")
             }
+            "sheet-primary" -> routeFlow.onPrimary(routeFlow.sheet.value?.id ?: error("떠 있는 시트 없음"))
+            "sheet-secondary" -> routeFlow.onSecondary(routeFlow.sheet.value?.id ?: error("떠 있는 시트 없음"))
             else -> error("모르는 명령")
         }
     }
