@@ -79,8 +79,8 @@ fun RouteTimeline(
             RouteStop(null, stringResource(R.string.flow_current_location), member.location?.label?.ifBlank { null }
                 ?: stringResource(R.string.location_unknown), null, null, false)
             member.nav.waypoints.forEachIndexed { index, waypoint ->
-                // 도착 시각·거리가 null = 방금 넣어 내비가 계산 중인 경유지 (RouteManager 임시 상태) → 줄을 비워 둔다
-                RouteStop(index + 1, null, waypoint.place.name, waypoint.etaAt?.let { arrivalText(member.profile.name, it) },
+                // 도착 시각·거리가 null = 방금 넣어 내비가 계산 중인 경유지 (RouteManager 임시 상태) → "경로 계산 중"
+                RouteStop(index + 1, null, waypoint.place.name, arrivalOrCalculating(member.profile.name, waypoint.etaAt),
                     waypoint.remainDistM?.let { stringResource(R.string.flow_distance, it / 1000.0) }, false) {
                     if (!isMe) RouteAction(stringResource(R.string.flow_join_stop), R.drawable.ic_flow_add_stop,
                         enabled = onJoinWaypoint != null, onClick = { onJoinWaypoint?.invoke(waypoint.place) })
@@ -90,7 +90,7 @@ fun RouteTimeline(
                 val sameDestination = myMember?.nav?.destination?.let {
                     it == destination || (it.hasCoord && destination.hasCoord && it.lat == destination.lat && it.lon == destination.lon)
                 } == true
-                RouteStop(null, null, destination.name, member.nav.etaAt?.let { arrivalText(member.profile.name, it) },
+                RouteStop(null, null, destination.name, arrivalOrCalculating(member.profile.name, member.nav.etaAt),
                     member.nav.remainDistM?.let { stringResource(R.string.flow_distance, it / 1000.0) }, true) {
                     if (!isMe) RouteAction(stringResource(if (sameDestination) R.string.flow_same_destination else R.string.flow_go_here),
                         R.drawable.ic_flow_same_destination, enabled = !sameDestination && onFollowDestination != null,
@@ -136,6 +136,11 @@ private fun RouteAction(label: String, icon: Int, enabled: Boolean, onClick: () 
         Text(label, style = MaterialTheme.typography.labelMedium)
     }
 }
+
+/** 도착 시각을 아직 모르면 내비가 경로를 계산 중인 것 → "경로 계산 중". */
+@Composable
+private fun arrivalOrCalculating(name: String, at: Long?): String =
+    at?.let { arrivalText(name, it) } ?: stringResource(R.string.route_calculating)
 
 @Composable
 private fun arrivalText(name: String, at: Long): String = stringResource(R.string.flow_arrival, name,

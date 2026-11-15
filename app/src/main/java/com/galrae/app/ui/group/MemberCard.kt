@@ -34,7 +34,11 @@ internal fun MemberCard(member: Member, isMe: Boolean, onClick: () -> Unit) {
             MemberSummary(member, isMe, showChevron = true)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 val arrival = member.nav.etaAt?.let { SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(it)) }
-                Text(arrival ?: stringResource(R.string.destination_unset), style = MaterialTheme.typography.titleLarge)
+                // 목적지는 있는데 도착 시각이 없음 = 경로를 막 보내 내비가 계산 중 (RouteManager 임시 상태)
+                val status = arrival ?: stringResource(
+                    if (member.nav.destination != null) R.string.route_calculating else R.string.destination_unset,
+                )
+                Text(status, style = MaterialTheme.typography.titleLarge)
                 Text(member.location?.label?.ifBlank { null } ?: member.nav.destination?.name ?: stringResource(R.string.location_unknown),
                     style = MaterialTheme.typography.bodyMedium, color = TextSecondary, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
