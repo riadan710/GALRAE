@@ -59,6 +59,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.pleos.navihelper)
     implementation(libs.pleos.vehicle)
+    implementation(libs.pleos.stt)
+    implementation(libs.pleos.tts)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

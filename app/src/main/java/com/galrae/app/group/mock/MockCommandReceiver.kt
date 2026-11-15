@@ -80,9 +80,9 @@ class MockCommandReceiver(
             recommend(arg, intent.getStringExtra("trigger"), intent.getStringExtra("member"))
             return
         }
-        Log.i(TAG, "command $command \"$arg\"")
+        if (command == "say") Log.i(TAG, "command say") else Log.i(TAG, "command $command \"$arg\"")
         runCatching { handle(command, arg) }
-            .onFailure { Log.e(TAG, "command failed: $command \"$arg\" — ${it.message}") }
+            .onFailure { Log.e(TAG, "command failed: $command — ${it.message}") }
     }
 
     /** 카카오 호출은 비동기로 수행한다. 실제 데이터 연결 전 내 차의 누락 좌표·목적지만 명시적 목업으로 채운다. */
@@ -120,6 +120,10 @@ class MockCommandReceiver(
         when (command) {
             "reset" -> mock.reset()
             "state" -> mock.logState()
+            "say" -> {
+                val parts = split(arg) ?: error("멤버:텍스트 형식이어야 함")
+                mock.receiveText(memberId(parts.first), parts.second)
+            }
             "long-drive" -> mock.setLongDrive(memberId(arg))
             "propose-dest" -> {
                 val (member, place) = memberAndPlace(arg, defaultMember = MockScenario.SISTER_ID)

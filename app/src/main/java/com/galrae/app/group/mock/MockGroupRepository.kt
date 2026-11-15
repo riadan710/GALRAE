@@ -6,6 +6,7 @@ import com.galrae.app.car.energy.EnergyType
 import com.galrae.app.car.navi.NavState
 import com.galrae.app.car.navi.NavWaypoint
 import com.galrae.app.group.GroupRepository
+import com.galrae.app.group.model.TextMessage
 import com.galrae.app.group.model.Answer
 import com.galrae.app.group.model.MeetSummary
 import com.galrae.app.group.model.Member
@@ -52,6 +53,25 @@ class MockGroupRepository : GroupRepository {
 
     private val _proposals = MutableStateFlow<List<Proposal>>(emptyList())
     override val proposals: StateFlow<List<Proposal>> = _proposals.asStateFlow()
+
+    private val _messages = MutableStateFlow<List<TextMessage>>(emptyList())
+    override val messages = _messages.asStateFlow()
+
+    override fun sendText(text: String, toId: String?): TextMessage = receiveText(myId, text, toId)
+
+    fun receiveText(fromId: String, text: String, toId: String? = null, id: String = java.util.UUID.randomUUID().toString()): TextMessage {
+        require(id.isNotBlank()) { "메시지 ID가 비어 있어요" }
+        require(members.value.any { it.id == fromId }) { "발신자를 찾을 수 없어요" }
+        require(toId == null || members.value.any { it.id == toId }) { "수신자를 찾을 수 없어요" }
+        val message = TextMessage(id, fromId, toId, TextMessage.validatedText(text), System.currentTimeMillis())
+        _messages.update { previous ->
+            val existing = previous.find { it.id == id }
+            require(existing == null || (existing.fromId == fromId && existing.toId == toId && existing.text == message.text)) { "중복 메시지 ID" }
+            if (existing != null) previous else (previous + message).takeLast(100)
+        }
+        Log.i("GALRAE/Messages", "stored id=$id from=$fromId to=${toId ?: "all"} chars=${message.text.length}")
+        return _messages.value.first { it.id == id }
+    }
 
     private val proposalSeq = AtomicInteger()
 
@@ -130,6 +150,7 @@ class MockGroupRepository : GroupRepository {
 
     /** 가상 멤버와 제안을 처음 상태로 되돌린다. 녹화를 다시 찍을 때 쓴다. 내 차 상태는 유지한다. */
     fun reset() {
+        _messages.value = emptyList()
         val now = System.currentTimeMillis()
         val cars = MockScenario.virtualCars(now)
         drives.clear()

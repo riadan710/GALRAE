@@ -9,6 +9,7 @@ import com.galrae.app.group.model.MeetSummary
 import com.galrae.app.group.model.Member
 import com.galrae.app.group.model.Proposal
 import com.galrae.app.group.model.ProposalKind
+import com.galrae.app.group.model.TextMessage
 import com.galrae.app.group.model.ProposalTrigger
 import com.galrae.app.place.Place
 import com.galrae.app.route.RouteControl
@@ -361,6 +362,8 @@ class RouteFlowControllerTest {
     }
 
     private class FakeGroup : GroupRepository {
+        override val messages = MutableStateFlow<List<TextMessage>>(emptyList())
+        override fun sendText(text: String, toId: String?): TextMessage = error("not used")
         override val myId = "me"
         override val members = MutableStateFlow<List<Member>>(emptyList())
         override val proposals = MutableStateFlow<List<Proposal>>(emptyList())

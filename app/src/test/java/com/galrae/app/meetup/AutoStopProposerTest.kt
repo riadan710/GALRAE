@@ -19,6 +19,8 @@ class AutoStopProposerTest {
         Member(id, Profile(id, id, 0), energy = EnergyLevel(type, percent))
 
     private class TestGroup(initial: List<Member>) : GroupRepository {
+        override val messages = kotlinx.coroutines.flow.MutableStateFlow(emptyList<com.galrae.app.group.model.TextMessage>())
+        override fun sendText(text: String, toId: String?): com.galrae.app.group.model.TextMessage = error("not used")
         override val myId = "me"
         override val members = MutableStateFlow(initial)
         override val proposals = MutableStateFlow<List<Proposal>>(emptyList())

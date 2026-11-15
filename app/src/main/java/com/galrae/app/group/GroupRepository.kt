@@ -2,6 +2,7 @@ package com.galrae.app.group
 
 import com.galrae.app.car.energy.EnergyLevel
 import com.galrae.app.car.navi.NavState
+import com.galrae.app.group.model.TextMessage
 import com.galrae.app.group.model.Answer
 import com.galrae.app.group.model.MeetSummary
 import com.galrae.app.group.model.Member
@@ -27,6 +28,10 @@ interface GroupRepository {
 
     /** 진행 중인 제안 (내가 보낸 것, 받은 것 모두). 만료 판단은 [Proposal.expiresAt]으로 각 화면이 한다. */
     val proposals: StateFlow<List<Proposal>>
+
+    val messages: StateFlow<List<TextMessage>>
+
+    fun sendText(text: String, toId: String? = null): TextMessage
 
     /** 내 차 상태를 그룹에 올린다. 내 차 상태가 바뀔 때마다 부른다. */
     fun publishMyState(nav: NavState, energy: EnergyLevel?)
