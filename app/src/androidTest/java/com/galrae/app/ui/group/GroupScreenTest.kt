@@ -118,6 +118,37 @@ class GroupScreenTest {
         compose.runOnIdle { org.junit.Assert.assertTrue(group.proposals.value.isEmpty()) }
     }
 
+    /** [여기로 가기] → 확인 시트. [그대로 가기]를 누르면 경로는 그대로 두고 상세 화면으로 돌아온다. */
+    @Test fun followDestinationOpensConfirmSheetAndKeepsRouteOnKeepGoing() {
+        compose.runOnIdle { group.reset() }
+        compose.onNodeWithTag("group_members").performScrollToNode(hasText("언니네"))
+        compose.onNodeWithText("언니네").performClick()
+        val follow = compose.onAllNodesWithText("여기로 가기").fetchSemanticsNodes()
+        org.junit.Assume.assumeTrue("언니네와 목적지가 달라야 함 (에뮬 내비 상태에 따름)", follow.isNotEmpty())
+        compose.onNodeWithText("여기로 가기").assertIsEnabled().performClick()
+        compose.onNodeWithTag("route_sheet").assertExists()
+        compose.onNodeWithText("해당 목적지로 변경할까요?").assertExists()
+        compose.onNodeWithText("그대로 가기").performClick()
+        compose.onNodeWithTag("route_sheet").assertDoesNotExist()
+        compose.onNodeWithTag("coming_soon").assertDoesNotExist()
+        compose.onNodeWithText("언니네 정보").assertExists()
+    }
+
+    /** 내 경유지가 2곳일 때 [같이 들르기] → 교체 시트. [그대로 가기]면 아무것도 바꾸지 않는다. 아니면 내비가 바뀌므로 건너뛴다. */
+    @Test fun joinWaypointWithFullSlotsOpensReplaceSheet() {
+        val app = compose.activity.application as GalraeApp
+        org.junit.Assume.assumeTrue("내 경유지가 2곳이어야 함", app.route.state.value.waypoints.size >= 2)
+        compose.runOnIdle { group.reset() }
+        compose.onNodeWithTag("group_members").performScrollToNode(hasText("언니네"))
+        compose.onNodeWithText("언니네").performClick()
+        compose.onAllNodesWithText("같이 들르기")[0].assertIsEnabled().performClick()
+        compose.onNodeWithTag("replace_sheet").assertExists()
+        compose.onNodeWithText("언니네의 경유지", substring = true).assertExists()
+        compose.onNodeWithText("그대로 가기").performClick()
+        compose.onNodeWithTag("replace_sheet").assertDoesNotExist()
+        compose.onNodeWithText("언니네 정보").assertExists()
+    }
+
     @Test fun unfinishedActionsShowComingSoonAndReturnToCaller() {
         compose.runOnIdle { group.reset() }
         fun returnFromComingSoon() {
@@ -130,11 +161,6 @@ class GroupScreenTest {
         returnFromComingSoon()
         compose.onNodeWithTag("group_members").assertExists()
         compose.onNodeWithText("언니네").performClick()
-        for (label in listOf("같이 들르기", "여기로 가기")) {
-            compose.onNodeWithText(label).assertIsEnabled().performClick()
-            returnFromComingSoon()
-            compose.onNodeWithText("언니네 정보").assertExists()
-        }
         compose.onNodeWithContentDescription("그룹 메뉴").performClick()
         returnFromComingSoon()
         compose.onNodeWithText("중간에 모이기").performClick()

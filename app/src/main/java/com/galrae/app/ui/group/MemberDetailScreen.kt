@@ -18,6 +18,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.galrae.app.R
+import com.galrae.app.car.navi.NavWaypoint
 import com.galrae.app.group.model.Member
 import com.galrae.app.place.Place
 import com.galrae.app.ui.components.*
@@ -33,7 +34,7 @@ fun MemberDetailScreen(
     onBack: () -> Unit,
     onMeetup: () -> Unit,
     onMessage: (() -> Unit)? = null,
-    onJoinWaypoint: ((Place) -> Unit)? = null,
+    onJoinWaypoint: ((NavWaypoint) -> Unit)? = null,
     onFollowDestination: ((Place) -> Unit)? = null,
     onMore: (() -> Unit)? = null,
     messageFooter: (@Composable () -> Unit)? = null,
@@ -70,7 +71,7 @@ fun MemberDetailScreen(
 fun RouteTimeline(
     member: Member,
     myMember: Member?,
-    onJoinWaypoint: ((Place) -> Unit)? = null,
+    onJoinWaypoint: ((NavWaypoint) -> Unit)? = null,
     onFollowDestination: ((Place) -> Unit)? = null,
 ) {
     val isMe = member.id == myMember?.id
@@ -83,7 +84,7 @@ fun RouteTimeline(
                 RouteStop(index + 1, null, waypoint.place.name, arrivalOrCalculating(member.profile.name, waypoint.etaAt),
                     waypoint.remainDistM?.let { stringResource(R.string.flow_distance, it / 1000.0) }, false) {
                     if (!isMe) RouteAction(stringResource(R.string.flow_join_stop), R.drawable.ic_flow_add_stop,
-                        enabled = onJoinWaypoint != null, onClick = { onJoinWaypoint?.invoke(waypoint.place) })
+                        enabled = onJoinWaypoint != null, onClick = { onJoinWaypoint?.invoke(waypoint) })
                 }
             }
             member.nav.destination?.let { destination ->

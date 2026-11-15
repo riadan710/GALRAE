@@ -38,6 +38,7 @@ import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.galrae.app.R
 import com.galrae.app.group.GroupRepository
+import com.galrae.app.place.Place
 import com.galrae.app.group.model.Answer
 import com.galrae.app.ui.proposal.ProposalCard
 import com.galrae.app.ui.proposal.canRespond
@@ -50,6 +51,10 @@ import kotlinx.coroutines.launch
  * @param onAcceptWaypoint 경유지 제안 카드의 수락·교체. 내비에 경유지를 넣고 수락 응답까지 처리한다
  *  ([com.galrae.app.proposal.RouteFlowController.acceptWaypointProposal]). 슬롯이 꽉 찼으면 교체 시트가 뜨고,
  *  결과 토스트는 [com.galrae.app.ui.route.RouteFlowOverlay]가 띄운다. null이면 응답만 기록한다 (미리보기·테스트용)
+ * @param onJoinWaypoint 멤버 상세의 [같이 들르기]. 그 멤버의 경유지를 내 경로에 넣는다
+ *  ([com.galrae.app.proposal.RouteFlowController.joinWaypoint]). null이면 준비 중 화면
+ * @param onFollowDestination 멤버 상세의 [여기로 가기]. 확인 시트를 띄운다
+ *  ([com.galrae.app.proposal.RouteFlowController.followDestination]). null이면 준비 중 화면
  */
 @Composable
 fun GroupScreen(
@@ -58,6 +63,8 @@ fun GroupScreen(
     onExit: () -> Unit,
     speech: SpeechController? = null,
     onAcceptWaypoint: ((proposalId: String) -> Unit)? = null,
+    onJoinWaypoint: ((place: Place, memberId: String, etaAt: Long?) -> Unit)? = null,
+    onFollowDestination: ((Place) -> Unit)? = null,
 ) {
     val memberFlow = remember(group, lifecycle) { group.members.flowWithLifecycle(lifecycle) }
     val proposalFlow = remember(group, lifecycle) { group.proposals.flowWithLifecycle(lifecycle) }
@@ -177,8 +184,11 @@ fun GroupScreen(
             Box(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
                 MemberDetailScreen(selectedMember, members.find { it.id == group.myId },
                     onBack = { cancelMessage(); selectedMemberId = null }, onMeetup = { cancelMessage(); showMeetup = true },
-                    onMessage = if (speech == null) unavailable else messageAction, onJoinWaypoint = { unavailable() },
-                    onFollowDestination = { unavailable() }, onMore = unavailable, messageFooter = if (speech != null) footer else null)
+                    onMessage = if (speech == null) unavailable else messageAction, onJoinWaypoint = { wp ->
+                        cancelMessage()
+                        onJoinWaypoint?.invoke(wp.place, selectedMember.id, wp.etaAt) ?: unavailable()
+                    },
+                    onFollowDestination = { place -> cancelMessage(); onFollowDestination?.invoke(place) ?: unavailable() }, onMore = unavailable, messageFooter = if (speech != null) footer else null)
             }
         }
         return

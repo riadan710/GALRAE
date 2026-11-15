@@ -58,6 +58,8 @@ class MainActivity : ComponentActivity() {
                     GroupScreen(
                         app.group, lifecycle, onExit = { finish() }, speech = speech,
                         onAcceptWaypoint = { app.routeFlow.acceptWaypointProposal(it) },
+                        onJoinWaypoint = { place, memberId, etaAt -> app.routeFlow.joinWaypoint(place, memberId, etaAt) },
+                        onFollowDestination = { app.routeFlow.followDestination(it) },
                     )
                     // Flow 1 하단 확인 시트·토스트. 메인·상세 어느 화면이든 위에 뜬다
                     RouteFlowOverlay(app.routeFlow, app.group)
