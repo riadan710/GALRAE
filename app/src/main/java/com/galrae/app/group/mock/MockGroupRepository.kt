@@ -66,6 +66,7 @@ class MockGroupRepository : GroupRepository {
         _members.update { list ->
             list.map {
                 // TODO: 정차·도착·충전 필요 등 내 상태 판단은 기어·속도를 읽은 뒤 (docs 3장 카드 상태)
+                // TODO(FusedLocation): 내 위치(location)도 받아 채운다. 그 전까지 내 Member.location은 null (MyCar 참고)
                 if (it.id == myId) it.copy(nav = nav, energy = energy) else it
             }
         }

@@ -33,6 +33,14 @@ class MyCar(context: Context) {
     /** 남은 배터리 또는 연료. */
     val energyLevel: StateFlow<EnergyLevel?> get() = energy.level
 
+    // TODO(FusedLocation): 내 차 현재 위치 출처 추가 (docs 3장 "현재 위치 좌표", 9-4 권한표)
+    //  - car/location/LocationSource 인터페이스 + FusedLocationSource (`registerFusedLocationCallback`)
+    //  - 의존성 `ai.pleos.playground:FusedLocation:1.1.3`, 권한 `pleos.car.permission.FUSED_LOCATION` (+ 이미 있는 ACCESS_FINE_LOCATION)
+    //  - 여기 `val location: StateFlow<...>`로 내보내고 GalraeApp.publishMyState의 combine에 추가 → Member.location
+    //  - 쓰는 곳: 같이 들르기 "여기서 Nkm", 중간에 모이기·Flow 2 추천 엔진의 거리 계산
+    //  - 에뮬은 내비가 판교 고정이고 FusedLocation만 `adb emu geo fix` / pleos-spike `tools/nmea_drive.py`로 움직인다 (docs 1-3).
+    //    둘이 어긋나면 내비 기준 남은 거리·ETA와 앱 위치가 안 맞으니 시연 때는 판교 근처에 둔다
+
     fun start() {
         navi.start()
         runCatching { vehicle.initialize() }
