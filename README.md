@@ -1,13 +1,12 @@
 <div align="center">
-
-# 갈래
-
-### 따로 달려도, 우리의 이동은 하나로.
+<img width="1920" height="480" alt="갈래배너" src="https://github.com/user-attachments/assets/93aa4866-7b23-4545-9f12-15dba058e977" />
 
 각자의 차로 이동하는 일행이 서로의 이동 상황에 맞춰<br>
 주행 중에도 계획부터 주차까지 조율하도록 돕는 차량용 앱.
 
 **Pleos Connect · Kotlin · Jetpack Compose**
+
+[▶ 프로토타입 시연 영상](https://www.youtube.com/watch?v=n-5Ps94EvIg)
 
 [주요 기능](#주요-기능) · [기술 활용 계획](#주요-기술-및-sdkapi-활용-계획) · [시작하기](#시작하기) · [개발 환경](#개발-환경) · [APK](#apk)
 
