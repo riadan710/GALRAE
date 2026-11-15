@@ -37,6 +37,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.galrae.app.R
+import com.galrae.app.ui.theme.AppBackground
 import com.galrae.app.group.GroupRepository
 import com.galrae.app.place.Place
 import com.galrae.app.group.model.Answer
@@ -194,7 +195,7 @@ fun GroupScreen(
         return
     }
 
-    Scaffold(snackbarHost = { SnackbarHost(snackbar) }) { insets ->
+    Scaffold(snackbarHost = { SnackbarHost(snackbar) }, containerColor = AppBackground) { insets ->
         Column(Modifier.fillMaxSize().padding(insets).padding(24.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
             Row(Modifier.fillMaxWidth().heightIn(min = 88.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -222,7 +223,9 @@ fun GroupScreen(
                 }
             }
             if (proposal != null) {
-                ProposalCard(proposal, members, group.myId, now, myWaypoints.size,
+                // 제안 장소가 이미 내 경유지에 있으면 2/2여도 교체가 아니라 수락만 하면 된다
+                val alreadyIncluded = myWaypoints.any { it.place.isSamePlace(proposal.place) }
+                ProposalCard(proposal, members, group.myId, now, myWaypoints.size, alreadyIncluded = alreadyIncluded,
                     onAccept = {
                         if (onAcceptWaypoint != null) {
                             // 내비 반영 + 수락 응답. 자리가 없으면 교체 시트로 이어진다
@@ -252,10 +255,11 @@ fun GroupScreen(
             }
             LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("group_members"), verticalArrangement = Arrangement.spacedBy(16.dp),
                 contentPadding = PaddingValues(bottom = 16.dp)) {
-                items(members, key = { it.id }) { member ->
-                    Box(Modifier.testTag("member_${member.id}")) {
-                        MemberCard(member, member.id == group.myId, onClick = { cancelMessage(); selectedMemberId = member.id })
-                    }
+                // 목적지별 묶음 (Figma 메인). 다른 목적지 그룹의 [여기로 가기]는 상세 화면과 같은 확인 시트로 간다
+                items(groupByDestination(members, group.myId), key = { "group_" + it.members.first().id }) { destinationGroup ->
+                    DestinationGroupSection(destinationGroup, group.myId,
+                        onMemberClick = { member -> cancelMessage(); selectedMemberId = member.id },
+                        onFollowDestination = { place -> cancelMessage(); onFollowDestination?.invoke(place) ?: unavailable() })
                 }
             }
             if (speech != null) {

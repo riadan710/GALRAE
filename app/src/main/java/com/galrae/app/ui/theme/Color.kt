@@ -14,3 +14,10 @@ val InfoBackground = Color(0xFFDCE8FF)
 val InfoText = Color(0xFF1E4FD6)
 val NeutralChip = Color(0xFFEEF0F3)
 val NeutralChipText = Color(0xFF3A3F47)
+
+/** 충전/주유 필요 칩 (Figma 주황). */
+val WarningChip = Color(0xFFFFEEDB)
+val WarningChipText = Color(0xFFB45F06)
+
+/** 메인 목적지 그룹: 내 목적지가 아닌 그룹의 핀. */
+val OtherDestinationPin = Color(0xFF2BA3A8)

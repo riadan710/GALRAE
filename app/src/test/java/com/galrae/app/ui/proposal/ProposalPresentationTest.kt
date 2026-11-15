@@ -29,10 +29,11 @@ class ProposalPresentationTest {
         assertFalse(proposal().canRespond("me", 16_000))
     }
 
-    @Test fun answeredProposalsRemainVisibleButCannotBeAnsweredAgain() {
+    /** Figma Flow 2 응답 화면: 수락·거절하면 카드는 내려가고 토스트만 남는다. */
+    @Test fun answeredProposalsAreHiddenAndCannotBeAnsweredAgain() {
         for (answer in listOf(Answer.ACCEPTED, Answer.DECLINED)) {
             val answered = proposal().copy(responses = proposal().responses + ("me" to answer))
-            assertTrue(answered.isVisibleTo("me", 1_000))
+            assertFalse(answered.isVisibleTo("me", 1_000))
             assertFalse(answered.canRespond("me", 1_000))
         }
         assertTrue(proposal().canRespond("me", 1_000))

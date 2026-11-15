@@ -357,11 +357,53 @@ class RouteFlowControllerTest {
     }
 
     @Test
-    fun `중간에 모이기 제안은 받는 화면이 없어 자동 수락하지 않는다`() = runBlocking {
+    fun `중간에 모이기 제안이 오면 시트를 띄우고 추가하기로 경유지를 넣는다`() = runBlocking {
         route.state.value = routeWith()
-        group.receive(proposal("m1", kind = ProposalKind.MEETUP, place = hoengseong, expiresIn = 600))
-        delay(700)
+        group.receive(proposal("m1", kind = ProposalKind.MEETUP, place = hoengseong, expiresIn = 15_000))
+        val shown = awaitSheet()
+        assertEquals(RouteSheet.WaypointProposed(group.proposals.value.single(), full = false), shown.content)
+        controller.onPrimary(shown.id)
+        assertEquals(listOf(hoengseong), route.waypoints())
+        assertEquals(listOf("m1" to Answer.ACCEPTED), group.answers)
+    }
+
+    @Test
+    fun `중간에 모이기 시트가 만료되면 경유지를 넣고 수락한다`() = runBlocking {
+        route.state.value = routeWith()
+        group.receive(proposal("m1", kind = ProposalKind.MEETUP, place = hoengseong, expiresIn = 900))
+        awaitSheet()
+        delay(900)
+        assertNull(controller.sheet.value)
+        assertEquals(listOf(hoengseong), route.waypoints())
+        assertEquals(listOf("m1" to Answer.ACCEPTED), group.answers)
+    }
+
+    @Test
+    fun `중간에 모이기 시트에서 그대로 가기는 거절로 응답한다`() = runBlocking {
+        route.state.value = routeWith()
+        group.receive(proposal("m1", kind = ProposalKind.MEETUP, place = hoengseong, expiresIn = 15_000))
+        controller.onSecondary(awaitSheet().id)
         assertTrue(route.waypoints().isEmpty())
+        assertEquals(listOf("m1" to Answer.DECLINED), group.answers)
+    }
+
+    @Test
+    fun `경유지가 꽉 찼으면 중간에 모이기 시트가 만료돼도 그대로 둔다`() = runBlocking {
+        route.state.value = routeWith(hoengseong, pyeongchang)
+        group.receive(proposal("m1", kind = ProposalKind.MEETUP, place = market, expiresIn = 900))
+        assertTrue((awaitSheet().content as RouteSheet.WaypointProposed).full)
+        delay(900)
+        assertNull(controller.sheet.value)
+        assertEquals(listOf(hoengseong, pyeongchang), route.waypoints())
+        assertTrue(group.answers.isEmpty())
+    }
+
+    @Test
+    fun `경유지가 꽉 찼을 때 중간에 모이기 추가하기는 교체 시트로 이어진다`() = runBlocking {
+        route.state.value = routeWith(hoengseong, pyeongchang)
+        group.receive(proposal("m1", kind = ProposalKind.MEETUP, place = market, expiresIn = 15_000))
+        controller.onPrimary(awaitSheet().id)
+        assertTrue(controller.sheet.value?.content is RouteSheet.ReplaceWaypoint)
         assertTrue(group.answers.isEmpty())
     }
 

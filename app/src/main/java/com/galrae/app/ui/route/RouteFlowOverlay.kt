@@ -146,6 +146,26 @@ private fun RouteSheetContent(
                 onCancel = onSecondary,
                 detail = sheet.proposal.place.address,
                 confirmLeading = countdown,
+                titleIcon = R.drawable.ic_bell,
+            )
+        }
+        // 중간에 모이기 받는 쪽: 경유지 제안. 꽉 찼으면 주 버튼은 교체 시트로, 카운트다운은 그대로 가기에
+        is RouteSheet.WaypointProposed -> {
+            val name = members.find { it.id == sheet.proposal.fromId }?.profile?.name
+                ?: stringResource(R.string.member_unknown)
+            PlaceProposalPrompt(
+                title = stringResource(R.string.route_sheet_meetup_title, name, josa(name, "이", "가")),
+                place = sheet.proposal.place,
+                summary = sheet.proposal.summary,
+                question = stringResource(R.string.route_sheet_meetup_question),
+                confirmLabel = stringResource(if (sheet.full) R.string.route_sheet_replace_waypoint else R.string.route_sheet_add_waypoint),
+                cancelLabel = stringResource(R.string.proposal_keep_going),
+                onConfirm = onPrimary,
+                onCancel = onSecondary,
+                detail = sheet.proposal.place.address.takeIf { sheet.proposal.summary == null },
+                confirmLeading = if (sheet.full) null else countdown,
+                cancelLeading = if (sheet.full) countdown else null,
+                titleIcon = R.drawable.ic_bell,
             )
         }
         // 5-2 여기로 가기 확인

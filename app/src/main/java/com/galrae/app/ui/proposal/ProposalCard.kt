@@ -32,6 +32,7 @@ import com.galrae.app.group.model.ProposalTrigger
 import com.galrae.app.ui.components.GalraeButton
 import com.galrae.app.ui.components.GalraeButtonStyle
 import com.galrae.app.ui.components.MemberAvatarStack
+import com.galrae.app.ui.components.josa
 import com.galrae.app.ui.theme.*
 
 @Composable
@@ -45,7 +46,10 @@ fun ProposalCard(
     onDecline: () -> Unit,
     modifier: Modifier = Modifier,
     onReplace: (() -> Unit)? = null,
+    /** 제안 장소가 이미 내 경유지에 있음. 2/2여도 교체 없이 수락만 하면 된다 (RouteFlowController: AlreadyIncluded). */
+    alreadyIncluded: Boolean = false,
 ) {
+    val full = waypointCount >= 2 && !alreadyIncluded
     val onlyMe = proposal.toId != null
     val accent = if (onlyMe) Color.Black else BrandBlue
     val answer = proposal.responses[myId]
@@ -82,10 +86,14 @@ fun ProposalCard(
                 ProposalTrigger.LONG_DRIVE -> stringResource(R.string.proposal_long_drive,
                     sender?.driveStartAt?.let { ((now - it) / 3_600_000).toInt().coerceAtLeast(2) } ?: 2)
                 ProposalTrigger.GAP -> {
-                    val rear = members.filter { it.nav.etaAt != null }.maxByOrNull { it.nav.etaAt!! }
+                    // 뒤차 = 도착이 가장 늦는 다른 멤버 (나·보낸 사람 제외. "뒤차 나와"가 되지 않게)
+                    val rear = members.filter { it.nav.etaAt != null && it.id != myId && it.id != proposal.fromId }.maxByOrNull { it.nav.etaAt!! }
                     val frontEta = sender?.nav?.etaAt
-                    if (rear != null && frontEta != null) stringResource(R.string.proposal_gap, rear.profile.name, ((rear.nav.etaAt!! - frontEta).coerceAtLeast(0) / 60_000).toInt())
-                    else stringResource(R.string.proposal_gap_unknown)
+                    if (rear != null && frontEta != null) {
+                        val rearName = rear.profile.name
+                        stringResource(R.string.proposal_gap, rearName, josa(rearName, "과", "와"),
+                            ((rear.nav.etaAt!! - frontEta).coerceAtLeast(0) / 60_000).toInt())
+                    } else stringResource(R.string.proposal_gap_unknown)
                 }
                 null -> stringResource(R.string.proposal_generic, name)
             }
@@ -113,7 +121,7 @@ fun ProposalCard(
             // 카운트다운은 만료 때 실행될 버튼에 붙인다. 자리가 있으면 수락(자동 추가), 꽉 찼으면 그대로 가기
             // (바꿀 자리는 사용자만 고를 수 있어서. RouteFlowController.scheduleAutoAccept)
             val countdown: @Composable () -> Unit = { CountdownIndicator(proposal.remainingSeconds(now)) }
-            val countdownOnAccept = waypointCount < 2
+            val countdownOnAccept = !full
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 GalraeButton(
                     stringResource(if (answer == Answer.DECLINED) R.string.proposal_declined else R.string.proposal_keep_going),
@@ -123,11 +131,11 @@ fun ProposalCard(
                 val acceptText = when {
                     answer == Answer.ACCEPTED -> stringResource(R.string.proposal_accepted)
                     answer == Answer.DECLINED -> stringResource(R.string.proposal_response_done)
-                    waypointCount >= 2 -> stringResource(R.string.proposal_replace_required)
+                    full -> stringResource(R.string.proposal_replace_required)
                     else -> stringResource(R.string.proposal_add_waypoint, waypointCount)
                 }
-                GalraeButton(acceptText, { if (waypointCount >= 2) onReplace?.invoke() else onAccept() }, Modifier.weight(1f).testTag("proposal_accept"),
-                    if (onlyMe) GalraeButtonStyle.PRIMARY else GalraeButtonStyle.BRAND, canRespond && (waypointCount < 2 || onReplace != null),
+                GalraeButton(acceptText, { if (full) onReplace?.invoke() else onAccept() }, Modifier.weight(1f).testTag("proposal_accept"),
+                    if (onlyMe) GalraeButtonStyle.PRIMARY else GalraeButtonStyle.BRAND, canRespond && (!full || onReplace != null),
                     leading = if (countdownOnAccept && canRespond) countdown else null)
             }
         }

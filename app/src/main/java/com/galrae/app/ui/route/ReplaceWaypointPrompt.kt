@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.galrae.app.R
+import com.galrae.app.ui.components.formatClock
 import com.galrae.app.car.navi.NavWaypoint
 import com.galrae.app.group.model.Member
 import com.galrae.app.proposal.RouteSheet
@@ -31,9 +32,6 @@ import com.galrae.app.ui.components.GalraeButtonStyle
 import com.galrae.app.ui.components.MeetupSummaryText
 import com.galrae.app.ui.theme.OutlineGray
 import com.galrae.app.ui.theme.TextSecondary
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /**
  * 경유지 교체 시트 (docs 5-3, Figma 교체 시트).
@@ -147,4 +145,4 @@ private fun CurrentWaypointRow(index: Int, wp: NavWaypoint, onReplace: () -> Uni
 }
 
 /** 멤버 카드와 같은 도착 시각 형식. */
-private fun formatTime(epochMs: Long): String = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(epochMs))
+private fun formatTime(epochMs: Long): String = formatClock(epochMs)

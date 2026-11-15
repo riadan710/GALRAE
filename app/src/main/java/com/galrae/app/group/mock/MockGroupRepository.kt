@@ -131,10 +131,14 @@ class MockGroupRepository : GroupRepository {
         val now = System.currentTimeMillis()
         updateMember(memberId) { m ->
             val energy = EnergyLevel(m.energy?.type ?: EnergyType.EV, percent)
+            val resting = m.copy(energy = energy).restingStatus()
             val status = when {
-                // 경로 변경 칩이 떠 있으면 그대로 두고, 칩이 끝날 때 충전/주유 필요로 돌아간다 (advance)
-                m.status in TEMPORARY_STATUSES || m.status == MemberStatus.ARRIVED -> m.status
-                else -> m.copy(energy = energy).restingStatus()
+                m.status == MemberStatus.ARRIVED -> m.status
+                // 충전/주유 필요가 경로 변경 칩보다 우선 (Figma Flow 2: 경유지를 넣어도 "충전 필요" 유지)
+                resting != MemberStatus.MOVING -> resting
+                // 경로 변경 칩이 떠 있으면 그대로 두고, 칩이 끝날 때 이동중으로 돌아간다 (advance)
+                m.status in TEMPORARY_STATUSES -> m.status
+                else -> resting
             }
             m.copy(
                 energy = energy,
@@ -262,12 +266,14 @@ class MockGroupRepository : GroupRepository {
                 remainDistM = remain,
                 totalDistM = remain,
             ),
-            status = MemberStatus.DESTINATION_CHANGED,
+            status = chipOver(MemberStatus.DESTINATION_CHANGED),
             statusAt = now,
         )
     }
 
     private fun Member.addWaypoint(place: Place, now: Long): Member {
+        // 이미 있는 경유지면 그대로 (실제 내비 RouteManager.addWaypoint와 같게)
+        if (nav.waypoints.any { it.place.isSamePlace(place) }) return this
         val here = currentPlace() ?: return this
         val drive = drives[id] ?: return this
         val dist = Geo.roadDistanceM(here, place) ?: return this
@@ -277,7 +283,7 @@ class MockGroupRepository : GroupRepository {
             .sortedBy { it.remainDistM }
         return copy(
             nav = nav.copy(waypoints = waypoints),
-            status = MemberStatus.WAYPOINT_ADDED,
+            status = chipOver(MemberStatus.WAYPOINT_ADDED),
             statusAt = now,
         )
     }
@@ -332,6 +338,10 @@ class MockGroupRepository : GroupRepository {
             statusAt = statusAt,
         )
     }
+
+    /** 경로 변경 칩. 충전/주유 필요 중이면 그 칩을 유지한다 (에너지 부족이 우선). */
+    private fun Member.chipOver(chip: MemberStatus): MemberStatus =
+        restingStatus().takeIf { it != MemberStatus.MOVING } ?: chip
 
     /** 잠깐 뜨는 칩이 없을 때의 상태: 잔량이 기준 이하면 충전/주유 필요, 아니면 이동중. */
     private fun Member.restingStatus(): MemberStatus {

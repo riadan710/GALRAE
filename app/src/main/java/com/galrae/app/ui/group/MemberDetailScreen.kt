@@ -23,9 +23,6 @@ import com.galrae.app.group.model.Member
 import com.galrae.app.place.Place
 import com.galrae.app.ui.components.*
 import com.galrae.app.ui.theme.*
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @Composable
 fun MemberDetailScreen(
@@ -144,5 +141,4 @@ private fun arrivalOrCalculating(name: String, at: Long?): String =
     at?.let { arrivalText(name, it) } ?: stringResource(R.string.route_calculating)
 
 @Composable
-private fun arrivalText(name: String, at: Long): String = stringResource(R.string.flow_arrival, name,
-    SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(at)))
+private fun arrivalText(name: String, at: Long): String = stringResource(R.string.flow_arrival, name, formatClock(at))

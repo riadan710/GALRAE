@@ -14,7 +14,7 @@
     <string name="proposal_low_ev">%1$s 차량 충전이 필요해요. 같이 쉬어갈까요?</string>
     <string name="proposal_low_fuel">%1$s 차량 주유가 필요해요. 같이 쉬어갈까요?</string>
     <string name="proposal_long_drive">%1$d시간째 운전 중이에요. 같이 쉬어갈까요?</string>
-    <string name="proposal_gap">뒤차 %1$s 차량과 %2$d분 차이 나요. 여기서 기다릴까요?</string>
+    <string name="proposal_gap">뒤차 %1$s%2$s %3$d분 차이 나요. 여기서 기다릴까요?</string>
     <string name="proposal_gap_unknown">뒤차와 간격이 벌어졌어요. 여기서 기다릴까요?</string>
     <string name="proposal_generic">%1$s님이 경유지를 제안했어요. 같이 들를까요?</string>
     <string name="proposal_arrival">%1$d분 뒤 모두 도착</string>
@@ -39,6 +39,9 @@
     <string name="member_waypoint">경유지: %1$s</string>
     <string name="action_close">닫기</string>
     <string name="destination_unset">목적지 미설정</string>
+    <string name="group_destination_count">%1$s · %2$d대</string>
+    <string name="group_my_destination">내 목적지</string>
+    <string name="member_waypoints">%1$s 경유</string>
     <string name="location_unknown">위치 정보 없음</string>
     <string name="member_moving">이동중</string>
     <string name="member_status_unknown">상태 확인 중</string>
@@ -125,6 +128,10 @@
     <string name="route_sheet_proposed_title">%1$s%2$s 목적지를 제안했어요</string>
     <string name="route_sheet_proposed_question">%1$s%2$s 함께 갈까요?</string>
     <string name="route_sheet_change_destination">목적지 변경하기</string>
+    <string name="route_sheet_meetup_title">%1$s%2$s 중간에 모이기를 제안했어요</string>
+    <string name="route_sheet_meetup_question">경유지를 추가할까요?</string>
+    <string name="route_sheet_add_waypoint">경유지 추가하기</string>
+    <string name="route_sheet_replace_waypoint">경유지 교체하기</string>
     <string name="route_sheet_follow_title">해당 목적지로 변경할까요?</string>
 
     <!-- 경유지 교체 시트 (docs 5-3) -->

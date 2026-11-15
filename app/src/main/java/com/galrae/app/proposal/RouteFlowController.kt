@@ -27,9 +27,10 @@ import kotlinx.coroutines.launch
  * - 상세 화면 [여기로 가기] → [followDestination] → [RouteSheet.FollowDestination]. 변경하기 = 내 목적지 변경 (5-2)
  * - 상세 화면 [같이 들르기] → [joinWaypoint]. 자리가 있으면 바로 추가, 꽉 찼으면 [RouteSheet.ReplaceWaypoint] (5-3)
  * - 경유지 제안(Flow 2 카드, 중간에 모이기) 수락 → [acceptWaypointProposal]. 같이 들르기와 같고, 내비에 넣은 뒤 수락 응답
+ * - 다른 멤버의 중간에 모이기 제안이 오면 → [RouteSheet.WaypointProposed]. 추가하기 = [acceptWaypointProposal]과 같음
  *
  * 카운트다운이 끝나면 누르지 않아도 하려던 수락 동작(주 버튼)을 실행한다. Flow 2 카드도 같다.
- * 예외: 교체 시트·자리가 꽉 찬 경유지 제안은 바꿀 자리를 사용자만 고를 수 있어 그대로 둔다.
+ * 예외: 교체 시트·자리가 꽉 찬 경유지 제안(카드·중간에 모이기 시트)은 바꿀 자리를 사용자만 고를 수 있어 그대로 둔다.
  *
  * 수락한 차량만 자기 내비를 바꾼다. 서버나 다른 차량이 대신 바꾸지 않는다 (docs 9-2).
  */
@@ -126,6 +127,15 @@ class RouteFlowController(
                 acceptDestination(s.proposal)
             }
             is RouteSheet.FollowDestination -> changeDestination(s.place)
+            is RouteSheet.WaypointProposed -> {
+                val latest = group.proposals.value.find { it.id == s.proposal.id }
+                if (latest == null || !latest.isOpenFor(group.myId, now())) {
+                    log("proposal ${s.proposal.id} closed before accept")
+                    return
+                }
+                // 누르면 꽉 찼을 때 교체 시트로, 만료면 그대로 간다
+                addWaypoint(latest.place, WaypointOrigin.FromProposal(latest), allowReplaceSheet = byUser)
+            }
             // 교체 시트는 어느 자리를 바꿀지 사용자만 고를 수 있다 → 만료는 그대로 가기 (응답 없음)
             is RouteSheet.ReplaceWaypoint -> decline(s, byUser)
         }
@@ -176,6 +186,10 @@ class RouteFlowController(
                 log("keep route, proposal ${s.proposal.id}")
             }
             is RouteSheet.FollowDestination -> log("keep destination, not following ${s.place.name} (byUser=$byUser)")
+            is RouteSheet.WaypointProposed -> {
+                respond(WaypointOrigin.FromProposal(s.proposal), Answer.DECLINED)
+                log("keep route, meetup proposal ${s.proposal.id}")
+            }
             // 제안을 수락했다가 교체 시트에서 그대로 가기를 눌렀으면 거절. 만료·다른 시트로 덮임은 응답 없음 (카드에서 다시 고를 수 있게)
             is RouteSheet.ReplaceWaypoint -> {
                 if (byUser) respond(s.origin, Answer.DECLINED)
@@ -276,7 +290,7 @@ class RouteFlowController(
         val t = now()
         scheduleAutoAccept(list, t)
         val incoming = list.filter {
-            it.kind == ProposalKind.DESTINATION && it.isOpenFor(group.myId, t) && it.id !in shownProposals
+            it.kind in SHEET_KINDS && it.isOpenFor(group.myId, t) && it.id !in shownProposals
         }
         // 여러 개가 한꺼번에 오면 가장 최근 것만 띄운다 (나중 제안이 이전 제안을 대신)
         val p = incoming.maxByOrNull { it.createdAt } ?: return
@@ -287,14 +301,18 @@ class RouteFlowController(
             log("proposal ${p.id} expires too soon, no sheet")
             return
         }
-        log("sheet: destination proposed by ${p.fromId} → ${p.place.name}")
-        sheets.show(RouteSheet.DestinationProposed(p), durationMs = duration)
+        val sheet = when (p.kind) {
+            ProposalKind.MEETUP -> RouteSheet.WaypointProposed(p, full = isFullFor(p.place))
+            else -> RouteSheet.DestinationProposed(p)
+        }
+        log("sheet: ${p.kind} proposed by ${p.fromId} → ${p.place.name}")
+        sheets.show(sheet, durationMs = duration)
     }
 
     /**
      * Flow 2 상단 카드(경유지 제안)도 카운트다운이 끝나면 수락한다. 카드는 화면 몫이라 시계는 여기서 돈다.
      * 내 경유지가 꽉 찼으면 어느 자리를 바꿀지 고를 수 없으니 그대로 둔다 (응답 없음).
-     * 중간에 모이기(MEETUP)는 받는 화면이 아직 없어 사용자가 못 본 제안을 수락하지 않도록 제외한다.
+     * 중간에 모이기(MEETUP)는 하단 시트의 카운트다운이 같은 일을 한다 ([RouteSheet.WaypointProposed]).
      */
     private fun scheduleAutoAccept(list: List<Proposal>, t: Long) {
         list.filter {
@@ -311,6 +329,12 @@ class RouteFlowController(
         }
     }
 
+    /** 넣으려는 장소가 내 경유지에 없고 자리가 꽉 찼는지 (RouteManager.addWaypoint의 NeedReplace와 같은 판단). */
+    private fun isFullFor(place: Place): Boolean {
+        val waypoints = route.state.value.waypoints
+        return waypoints.size >= MAX_WAYPOINTS && waypoints.none { it.place.isSamePlace(place) }
+    }
+
     private fun emit(event: RouteFlowEvent) {
         _events.tryEmit(event)
     }
@@ -323,6 +347,11 @@ class RouteFlowController(
 
         /** 수락하면 내 경유지가 추가되는 제안. */
         val WAYPOINT_KINDS = setOf(ProposalKind.AUTO_STOP, ProposalKind.MEETUP)
+
+        /** 받으면 하단 시트를 띄우는 제안. Flow 2 자동 제안(AUTO_STOP)은 상단 카드라 제외. */
+        val SHEET_KINDS = setOf(ProposalKind.DESTINATION, ProposalKind.MEETUP)
+
+        const val MAX_WAYPOINTS = 2
     }
 }
 

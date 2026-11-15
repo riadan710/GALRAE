@@ -41,9 +41,8 @@ class GroupScreenTest {
             compose.waitForIdle()
         }
         compose.runOnIdle { assertEquals(Answer.ACCEPTED, group.proposals.value.first { it.id == p.id }.responses[group.myId]) }
-        compose.onNodeWithTag("proposal_accept").assertIsNotEnabled()
-        compose.onNodeWithTag("proposal_decline").assertIsNotEnabled()
-        compose.onNodeWithText("수락했어요").assertExists()
+        // 응답하면 카드가 내려가 다시 누를 수 없다 (Figma Flow 2 응답 화면)
+        compose.onNodeWithTag("proposal_card").assertDoesNotExist()
     }
 
     /** 내 경유지가 2곳일 때만 의미가 있다 (에뮬 내비 상태에 따름). 아니면 건너뛴다. */
@@ -75,8 +74,8 @@ class GroupScreenTest {
         compose.onNodeWithTag("proposal_decline").assertIsEnabled().performClick()
         compose.waitForIdle()
         compose.runOnIdle { assertEquals(Answer.DECLINED, group.proposals.value.first { it.id == p.id }.responses[group.myId]) }
-        compose.onNodeWithTag("proposal_accept").assertIsNotEnabled()
-        compose.onNodeWithText("거절했어요").assertExists()
+        // 응답하면 카드는 내려간다 (Figma Flow 2 응답 화면)
+        compose.onNodeWithTag("proposal_card").assertDoesNotExist()
     }
 
     @Test fun proposalForAnotherMemberIsHidden() {
