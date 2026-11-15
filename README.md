@@ -114,7 +114,14 @@ adb emu avd hostmicon
 
 ## APK
 
-제출용 APK 및 GitHub Release 링크는 **준비 중**입니다.
+제출용 release APK: **[`apk/갈래말래_갈래_release.apk`](apk/갈래말래_갈래_release.apk)** (서명 완료)
+
+```bash
+adb install -r apk/갈래말래_갈래_release.apk
+adb shell am start --user 10 -n com.galrae.app/.MainActivity
+```
+
+> 같은 패키지의 debug 빌드가 설치되어 있으면 서명이 달라 설치되지 않습니다. 먼저 `adb uninstall com.galrae.app`으로 지운 뒤 설치하세요.
 
 직접 Debug APK를 빌드하려면:
 
