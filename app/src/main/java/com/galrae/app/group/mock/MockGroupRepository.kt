@@ -201,19 +201,19 @@ class MockGroupRepository : GroupRepository {
     }
 
     private fun setAnswer(proposalId: String, memberId: String, answer: Answer) {
-        var accepted: Proposal? = null
-        _proposals.update { list ->
-            list.map { p ->
-                if (p.id != proposalId || p.status != ProposalStatus.OPEN || memberId !in p.responses) return@map p
-                p.copy(responses = p.responses + (memberId to answer)).also {
-                    if (answer == Answer.ACCEPTED) accepted = it
-                }
-            }
+        if (answer == Answer.PENDING) return
+        while (true) {
+            val before = _proposals.value
+            val proposal = before.find { it.id == proposalId } ?: return
+            if (proposal.status != ProposalStatus.OPEN || System.currentTimeMillis() >= proposal.expiresAt ||
+                proposal.responses[memberId] != Answer.PENDING) return
+            val answered = proposal.copy(responses = proposal.responses + (memberId to answer))
+            if (!_proposals.compareAndSet(before, before.map { if (it.id == proposalId) answered else it })) continue
+            Log.i(TAG, "answer $proposalId $memberId=$answer")
+            // 상태 갱신이 성공한 뒤에만 가상 차량 경로를 한 번 변경한다.
+            if (answer == Answer.ACCEPTED && drives.containsKey(memberId)) applyAccepted(memberId, answered)
+            return
         }
-        Log.i(TAG, "answer $proposalId $memberId=$answer")
-        // 수락한 가상 멤버는 자기 경로를 바꾼다 (실제 앱에선 각 차량이 자기 내비에 반영, docs 9-2)
-        val p = accepted ?: return
-        if (drives.containsKey(memberId)) applyAccepted(memberId, p)
     }
 
     private fun applyAccepted(memberId: String, p: Proposal) {

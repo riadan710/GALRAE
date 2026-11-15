@@ -17,6 +17,19 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AutoStopIntegrationTest {
+    @Test fun expiredAndRepeatedAnswersAreIgnored() = runBlocking {
+        val group = MockGroupRepository()
+        val place = group.members.value.first { it.id == "sister" }.nav.destination!!
+        val expired = group.proposeFrom("sister", ProposalKind.MEETUP, place)
+        delay(5_100)
+        group.respond(expired.id, Answer.ACCEPTED)
+        assertEquals(Answer.PENDING, group.proposals.value.first { it.id == expired.id }.responses[group.myId])
+        val fresh = group.proposeFrom("sister", ProposalKind.MEETUP, place)
+        group.respond(fresh.id, Answer.ACCEPTED)
+        group.respond(fresh.id, Answer.DECLINED)
+        assertEquals(Answer.ACCEPTED, group.proposals.value.first { it.id == fresh.id }.responses[group.myId])
+    }
+
     @Test fun gapCreatesPendingProposalOnlyForFrontCar() = runBlocking {
         val group = MockGroupRepository()
         val now = System.currentTimeMillis()
