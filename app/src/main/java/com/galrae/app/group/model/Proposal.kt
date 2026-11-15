@@ -23,7 +23,7 @@ data class Proposal(
     /** 이 시각이 지나면 응답하지 않은 멤버는 거절로 본다. */
     val expiresAt: Long,
     val status: ProposalStatus = ProposalStatus.OPEN,
-    /** 멤버 id → 응답. 제안자 본인은 처음부터 수락으로 들어간다. */
+    /** 멤버 id → 응답. 제안자는 처음부터 수락, 본인에게만 보내는 GAP 제안은 대기 상태다. */
     val responses: Map<String, Answer> = emptyMap(),
 ) {
     val acceptedCount: Int get() = responses.count { it.value == Answer.ACCEPTED }
@@ -52,4 +52,8 @@ data class MeetSummary(
     val allArriveMin: Int,
     /** 먼저 도착한 차량이 가장 오래 기다리는 시간(분). */
     val maxWaitMin: Int,
+    /** 도로 ETA와 구분해 카드에 추정값임을 표시한다. */
+    val isEstimated: Boolean = true,
+    /** 충전기 적합성·잔량에 따른 도달 가능성이 미확인인 제안. */
+    val requiresFacilityVerification: Boolean = false,
 )

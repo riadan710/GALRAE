@@ -1,10 +1,15 @@
 package com.galrae.app
 
 import android.app.Application
+import android.util.Log
 import com.galrae.app.car.MyCar
 import com.galrae.app.group.GroupRepository
 import com.galrae.app.group.mock.MockCommandReceiver
 import com.galrae.app.group.mock.MockGroupRepository
+import com.galrae.app.group.mock.MockScenario
+import com.galrae.app.group.model.ProposalKind
+import com.galrae.app.group.model.ProposalTrigger
+import com.galrae.app.meetup.AutoStopProposer
 import com.galrae.app.meetup.KakaoPlaceSearch
 import com.galrae.app.meetup.MeetupRecommender
 import com.galrae.app.meetup.MeetupResult
@@ -44,6 +49,39 @@ class GalraeApp : Application() {
         mockGroup = MockGroupRepository()
         MockCommandReceiver(mockGroup, meetupRecommender) { _meetupResult.value = it }.register(this)
         publishMyState()
+        startAutoStopProposals()
+    }
+
+    private fun startAutoStopProposals() {
+        val proposer = AutoStopProposer(
+            group = group,
+            recommend = { members, request ->
+                meetupRecommender.recommend(
+                    MockScenario.recommendationMembers(members, group.myId),
+                    request.type, request.trigger, request.memberId,
+                ).also { _meetupResult.value = it }
+            },
+            send = { request, recommendation ->
+                val toId = if (request.trigger == ProposalTrigger.GAP) request.memberId else null
+                val proposal = if (request.memberId == group.myId) {
+                    group.sendProposal(
+                        ProposalKind.AUTO_STOP, recommendation.candidate.place,
+                        request.trigger, recommendation.summary,
+                        toId,
+                    )
+                } else {
+                    // shortcut: 한 앱에서 가상 차량의 감지·제안을 대신 실행, Firebase 연동 시 각 차량이 자기 상태만 처리
+                    mockGroup.proposeFrom(
+                        request.memberId, ProposalKind.AUTO_STOP, recommendation.candidate.place,
+                        request.trigger, recommendation.summary,
+                        toId,
+                    )
+                }
+                Log.i("GALRAE/AutoStop", "created ${proposal.id} trigger=${proposal.trigger} from=${proposal.fromId} to=${proposal.toId ?: "all"} place=${proposal.place.name} summary=${proposal.summary}")
+            },
+            onFailure = { Log.w("GALRAE/AutoStop", it) },
+        )
+        appScope.launch { group.members.collect { proposer.check() } }
     }
 
     /** 내 차 상태가 바뀔 때마다 그룹에 올린다 (Firebase에선 members/{uid} 쓰기). */

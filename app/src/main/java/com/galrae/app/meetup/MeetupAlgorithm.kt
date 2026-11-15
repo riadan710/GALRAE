@@ -106,7 +106,11 @@ object MeetupAlgorithm {
             val wait = maximum - times.values.min()
             MeetupRecommendation(
                 candidate, RecommendationReason.SAME_ARRIVAL,
-                MeetSummary(ceil(maximum / 60.0).toInt(), ceil(wait / 60.0).toInt()),
+                MeetSummary(
+                    ceil(maximum / 60.0).toInt(), ceil(wait / 60.0).toInt(),
+                    isEstimated = true,
+                    requiresFacilityVerification = trigger == ProposalTrigger.LOW_EV || trigger == ProposalTrigger.LOW_FUEL,
+                ),
                 times, trigger == ProposalTrigger.LOW_EV || trigger == ProposalTrigger.LOW_FUEL,
             )
         }

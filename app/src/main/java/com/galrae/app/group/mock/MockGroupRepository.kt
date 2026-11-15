@@ -98,7 +98,7 @@ class MockGroupRepository : GroupRepository {
         toId: String? = null,
     ): Proposal {
         val proposal = createProposal(fromId, kind, place, trigger, summary, toId)
-        if (drives.containsKey(fromId)) applyAccepted(fromId, proposal)
+        if (drives.containsKey(fromId) && toId != fromId) applyAccepted(fromId, proposal)
         return proposal
     }
 
@@ -119,6 +119,12 @@ class MockGroupRepository : GroupRepository {
             )
         }
         Log.i(TAG, "energy $memberId=$percent")
+    }
+
+    fun setLongDrive(memberId: String) {
+        require(drives.containsKey(memberId)) { "가상 차량만 운전 시간을 설정할 수 있습니다" }
+        updateMember(memberId) { it.copy(driveStartAt = System.currentTimeMillis() - 2 * 60 * 60_000L) }
+        Log.i(TAG, "long-drive $memberId")
     }
 
     /** 가상 멤버와 제안을 처음 상태로 되돌린다. 녹화를 다시 찍을 때 쓴다. 내 차 상태는 유지한다. */
@@ -151,7 +157,7 @@ class MockGroupRepository : GroupRepository {
     /** 현재 상태를 로그로 남긴다. 시연 중 확인용. */
     fun logState() {
         Log.i(TAG, "state ${summary()}")
-        _proposals.value.forEach { Log.i(TAG, "state ${it.id} ${it.kind} from=${it.fromId} ${it.responses}") }
+        _proposals.value.forEach { Log.i(TAG, "state ${it.id} ${it.kind} trigger=${it.trigger} from=${it.fromId} to=${it.toId ?: "all"} place=${it.place.name} summary=${it.summary} ${it.responses}") }
     }
 
     // ── 제안·응답 ────────────────────────────────────────────────
@@ -176,7 +182,8 @@ class MockGroupRepository : GroupRepository {
             summary = summary,
             createdAt = now,
             expiresAt = now + kind.countdownMs,
-            responses = mapOf(fromId to Answer.ACCEPTED) + recipients.associateWith { Answer.PENDING },
+            responses = mapOf(fromId to if (toId == fromId) Answer.PENDING else Answer.ACCEPTED) +
+                recipients.associateWith { Answer.PENDING },
         )
         // 같은 사람의 이전 진행 중 제안은 대체 (docs 9-1)
         _proposals.update { list -> list.filterNot { it.fromId == fromId } + proposal }

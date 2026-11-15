@@ -7,7 +7,6 @@ import android.content.IntentFilter
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.galrae.app.group.model.ProposalKind
-import com.galrae.app.group.model.MemberLocation
 import com.galrae.app.group.model.ProposalTrigger
 import com.galrae.app.meetup.MeetupRecommender
 import com.galrae.app.meetup.MeetupResult
@@ -34,6 +33,7 @@ import kotlinx.coroutines.launch
  * | `dest` | `멤버:장소` | 멤버가 혼자 목적지 변경 |
  * | `add-wp` | `멤버:장소` | 멤버가 경유지 추가 |
  * | `soc` | `멤버:퍼센트` | 멤버 배터리·연료 잔량 변경 (20% 이하면 충전/주유 필요) |
+ * | `long-drive` | `멤버` | 해당 가상 차량을 2시간 연속 운전 상태로 설정 |
  * | `recommend` | `cafe/food/rest/charger/fuel` | 카카오 검색·추정 추천 (선택: trigger, member extras) |
  *
  * 멤버는 이름(언니네·부모님) 또는 id(sister·parents), 장소는 [MockScenario.demoPlaces]의 이름.
@@ -84,12 +84,7 @@ class MockCommandReceiver(
                 val type = PlaceType.valueOf(typeName.uppercase())
                 val trigger = triggerName?.let { ProposalTrigger.valueOf(it.uppercase()) }
                 val member = memberName?.let(::memberId)
-                val snapshot = mock.members.value.map { m ->
-                    if (m.id != mock.myId) m else m.copy(
-                        location = m.location ?: MemberLocation(MockScenario.PANGYO.lat!!, MockScenario.PANGYO.lon!!, "PoC 판교 목업"),
-                        nav = if (m.nav.destination == null) m.nav.copy(destination = MockScenario.GANGNEUNG_STATION) else m.nav,
-                    )
-                }
+                val snapshot = MockScenario.recommendationMembers(mock.members.value, mock.myId)
                 Log.i(TAG, "recommend: PoC 목업 위치 사용, 모든 ETA는 추정값입니다")
                 val result = recommender.recommend(snapshot, type, trigger, member)
                 onRecommendation(result)
@@ -111,6 +106,7 @@ class MockCommandReceiver(
         when (command) {
             "reset" -> mock.reset()
             "state" -> mock.logState()
+            "long-drive" -> mock.setLongDrive(memberId(arg))
             "propose-dest" -> {
                 val (member, place) = memberAndPlace(arg, defaultMember = MockScenario.SISTER_ID)
                 mock.proposeFrom(member, ProposalKind.DESTINATION, place)
