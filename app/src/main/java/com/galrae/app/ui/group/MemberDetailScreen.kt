@@ -78,8 +78,9 @@ fun RouteTimeline(
             RouteStop(null, stringResource(R.string.flow_current_location), member.location?.label?.ifBlank { null }
                 ?: stringResource(R.string.location_unknown), null, null, false)
             member.nav.waypoints.forEachIndexed { index, waypoint ->
-                RouteStop(index + 1, null, waypoint.place.name, arrivalText(member.profile.name, waypoint.etaAt),
-                    stringResource(R.string.flow_distance, waypoint.remainDistM / 1000.0), false) {
+                // 도착 시각·거리가 null = 방금 넣어 내비가 계산 중인 경유지 (RouteManager 임시 상태) → 줄을 비워 둔다
+                RouteStop(index + 1, null, waypoint.place.name, waypoint.etaAt?.let { arrivalText(member.profile.name, it) },
+                    waypoint.remainDistM?.let { stringResource(R.string.flow_distance, it / 1000.0) }, false) {
                     if (!isMe) RouteAction(stringResource(R.string.flow_join_stop), R.drawable.ic_flow_add_stop,
                         enabled = onJoinWaypoint != null, onClick = { onJoinWaypoint?.invoke(waypoint.place) })
                 }
