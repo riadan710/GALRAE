@@ -55,7 +55,10 @@ class MainActivity : ComponentActivity() {
             GALRAETheme {
                 val app = application as GalraeApp
                 Box(Modifier.fillMaxSize()) {
-                    GroupScreen(app.group, lifecycle, onExit = { finish() }, speech = speech)
+                    GroupScreen(
+                        app.group, lifecycle, onExit = { finish() }, speech = speech,
+                        onAcceptWaypoint = { app.routeFlow.acceptWaypointProposal(it) },
+                    )
                     // Flow 1 하단 확인 시트·토스트. 메인·상세 어느 화면이든 위에 뜬다
                     RouteFlowOverlay(app.routeFlow, app.group)
                 }

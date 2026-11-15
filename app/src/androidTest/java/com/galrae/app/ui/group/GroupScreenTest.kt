@@ -35,10 +35,39 @@ class GroupScreenTest {
         val p = propose()
         compose.onNodeWithTag("proposal_accept").assertIsEnabled().performClick()
         compose.waitForIdle()
+        // 수락은 내비 반영을 거친다 (RouteFlowController). 내 경유지가 2곳이면 교체 시트가 뜨고, [교체]를 눌러야 수락된다
+        if (compose.onAllNodesWithTag("replace_sheet").fetchSemanticsNodes().isNotEmpty()) {
+            compose.onNodeWithTag("replace_1").performClick()
+            compose.waitForIdle()
+        }
         compose.runOnIdle { assertEquals(Answer.ACCEPTED, group.proposals.value.first { it.id == p.id }.responses[group.myId]) }
         compose.onNodeWithTag("proposal_accept").assertIsNotEnabled()
         compose.onNodeWithTag("proposal_decline").assertIsNotEnabled()
         compose.onNodeWithText("수락했어요").assertExists()
+    }
+
+    /** 내 경유지가 2곳일 때만 의미가 있다 (에뮬 내비 상태에 따름). 아니면 건너뛴다. */
+    @Test fun acceptWithFullWaypointsOpensReplaceSheetAndAcceptsOnReplace() {
+        val app = compose.activity.application as GalraeApp
+        org.junit.Assume.assumeTrue("내 경유지가 2곳이어야 함", app.route.state.value.waypoints.size >= 2)
+        lateinit var p: Proposal
+        compose.runOnIdle {
+            group.reset()
+            p = group.proposeFrom(
+                "sister", ProposalKind.AUTO_STOP, Place("평창휴게소 (강릉 방향)", lat = 37.583, lon = 128.391),
+                ProposalTrigger.LOW_EV, MeetSummary(28, 12), null,
+            )
+        }
+        compose.onNodeWithTag("proposal_accept").assertIsEnabled().performClick()
+        compose.onNodeWithTag("replace_sheet").assertExists()
+        compose.onNodeWithText("경유지는 2곳까지 넣을 수 있어요").assertExists()
+        compose.onNodeWithText("언니네의 제안").assertExists()
+        // 교체 전에는 응답하지 않는다
+        compose.runOnIdle { assertEquals(Answer.PENDING, group.proposals.value.first { it.id == p.id }.responses[group.myId]) }
+        compose.onNodeWithTag("replace_1").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag("replace_sheet").assertDoesNotExist()
+        compose.runOnIdle { assertEquals(Answer.ACCEPTED, group.proposals.value.first { it.id == p.id }.responses[group.myId]) }
     }
 
     @Test fun declineIsSavedInRepository() {

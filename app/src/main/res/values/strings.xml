@@ -127,6 +127,17 @@
     <string name="route_sheet_change_destination">목적지 변경하기</string>
     <string name="route_sheet_follow_title">해당 목적지로 변경할까요?</string>
 
+    <!-- 경유지 교체 시트 (docs 5-3) -->
+    <string name="route_replace_title">경유지는 2곳까지 넣을 수 있어요</string>
+    <string name="route_replace_question">기존 경유지와 교체할까요?</string>
+    <string name="route_replace_origin_member">%1$s의 경유지 · %2$s 도착</string>
+    <string name="route_replace_origin_member_no_eta">%1$s의 경유지</string>
+    <string name="route_replace_origin_proposal">%1$s의 제안</string>
+    <string name="route_replace_slot">경유지 %1$d</string>
+    <string name="route_replace_eta">%1$s 도착 · %2$.1fkm</string>
+    <string name="route_replace_button">교체</string>
+    <string name="route_calculating">경로 계산 중</string>
+
     <!-- Flow 1 처리 결과 토스트 -->
     <string name="route_toast_proposed">멤버들에게 목적지를 제안했어요.</string>
     <string name="route_toast_destination_changed">목적지를 변경했어요.</string>

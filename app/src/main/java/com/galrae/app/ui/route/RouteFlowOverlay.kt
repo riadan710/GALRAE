@@ -64,9 +64,7 @@ fun RouteFlowOverlay(routeFlow: RouteFlowController, group: GroupRepository, mod
 
     Box(modifier.fillMaxSize()) {
         val sheet = shown
-        // TODO(B3): 교체 시트(ReplaceWaypoint)는 내 경유지 목록 + [교체] 버튼이 필요해 별도 화면으로 만든다.
-        //  그 전까지는 그리지 않고, 카운트다운이 끝나면 "그대로 가기"로 처리된다
-        if (sheet != null && sheet.content !is RouteSheet.ReplaceWaypoint) {
+        if (sheet != null) {
             var now by remember(sheet.id) { mutableLongStateOf(System.currentTimeMillis()) }
             LaunchedEffect(sheet.id) {
                 while (true) {
@@ -96,6 +94,7 @@ fun RouteFlowOverlay(routeFlow: RouteFlowController, group: GroupRepository, mod
                             seconds = seconds,
                             onPrimary = { routeFlow.onPrimary(sheet.id) },
                             onSecondary = { routeFlow.onSecondary(sheet.id) },
+                            onReplace = { index -> routeFlow.onReplace(sheet.id, index) },
                         )
                     }
                 }
@@ -113,6 +112,7 @@ private fun RouteSheetContent(
     seconds: Int,
     onPrimary: () -> Unit,
     onSecondary: () -> Unit,
+    onReplace: (index: Int) -> Unit,
 ) {
     val countdown: @Composable () -> Unit = { CountdownIndicator(seconds) }
     when (sheet) {
@@ -159,7 +159,14 @@ private fun RouteSheetContent(
             detail = sheet.place.address,
             cancelLeading = countdown,
         )
-        is RouteSheet.ReplaceWaypoint -> Unit
+        // 5-3 교체 시트: 같이 들르기·경유지 제안 수락 때 내 경유지가 2곳으로 꽉 찼으면
+        is RouteSheet.ReplaceWaypoint -> ReplaceWaypointPrompt(
+            sheet = sheet,
+            members = members,
+            countdown = countdown,
+            onReplace = onReplace,
+            onKeep = onSecondary,
+        )
     }
 }
 

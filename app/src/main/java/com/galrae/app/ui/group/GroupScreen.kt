@@ -46,8 +46,19 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+/**
+ * @param onAcceptWaypoint 경유지 제안 카드의 수락·교체. 내비에 경유지를 넣고 수락 응답까지 처리한다
+ *  ([com.galrae.app.proposal.RouteFlowController.acceptWaypointProposal]). 슬롯이 꽉 찼으면 교체 시트가 뜨고,
+ *  결과 토스트는 [com.galrae.app.ui.route.RouteFlowOverlay]가 띄운다. null이면 응답만 기록한다 (미리보기·테스트용)
+ */
 @Composable
-fun GroupScreen(group: GroupRepository, lifecycle: Lifecycle, onExit: () -> Unit, speech: SpeechController? = null) {
+fun GroupScreen(
+    group: GroupRepository,
+    lifecycle: Lifecycle,
+    onExit: () -> Unit,
+    speech: SpeechController? = null,
+    onAcceptWaypoint: ((proposalId: String) -> Unit)? = null,
+) {
     val memberFlow = remember(group, lifecycle) { group.members.flowWithLifecycle(lifecycle) }
     val proposalFlow = remember(group, lifecycle) { group.proposals.flowWithLifecycle(lifecycle) }
     val members by memberFlow.collectAsState(group.members.value)
@@ -203,6 +214,11 @@ fun GroupScreen(group: GroupRepository, lifecycle: Lifecycle, onExit: () -> Unit
             if (proposal != null) {
                 ProposalCard(proposal, members, group.myId, now, myWaypoints.size,
                     onAccept = {
+                        if (onAcceptWaypoint != null) {
+                            // 내비 반영 + 수락 응답. 자리가 없으면 교체 시트로 이어진다
+                            onAcceptWaypoint(proposal.id)
+                            return@ProposalCard
+                        }
                         val current = group.proposals.value.find { it.id == proposal.id }
                         val slots = group.members.value.find { it.id == group.myId }?.nav?.waypoints?.size ?: 0
                         if (current?.canRespond(group.myId, System.currentTimeMillis()) == true && slots < 2) {
@@ -212,7 +228,8 @@ fun GroupScreen(group: GroupRepository, lifecycle: Lifecycle, onExit: () -> Unit
                             }
                         }
                     },
-                    onReplace = unavailable,
+                    // 경유지 2/2: 수락과 같은 경로로 보내면 교체 시트가 뜬다
+                    onReplace = onAcceptWaypoint?.let { accept -> { accept(proposal.id) } } ?: unavailable,
                     onDecline = {
                         if (group.proposals.value.find { it.id == proposal.id }?.canRespond(group.myId, System.currentTimeMillis()) == true) {
                             group.respond(proposal.id, Answer.DECLINED)
