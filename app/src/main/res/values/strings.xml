@@ -1,5 +1,12 @@
 <resources>
     <string name="app_name">갈래</string>
+    <string name="avatar_me">나</string>
+    <string name="avatar_description">%1$s %2$s</string>
+    <string name="avatar_more">+%1$d</string>
+    <string name="avatar_more_description">추가 %1$d명</string>
+    <string name="response_accepted">수락</string>
+    <string name="response_declined">거절</string>
+    <string name="response_pending">응답 대기</string>
 
     <!-- 포그라운드 서비스 알림 -->
     <string name="fgs_channel_name">그룹 주행</string>

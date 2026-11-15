@@ -45,7 +45,7 @@ internal object MockScenario {
 
     fun findPlace(name: String): Place? = demoPlaces.find { it.name == name }
 
-    val meProfile = Profile(name = "나", initial = "나", color = 0xFF4F8EF7)
+    val meProfile = Profile(name = "나", initial = "나", color = 0xFF2F6BFF)
 
     /** PoC 진입점에서만 내 차의 누락 위치·목적지를 보완한다. 실제 측정값은 유지한다. */
     fun recommendationMembers(members: List<Member>, myId: String): List<Member> = members.map { m ->
@@ -72,7 +72,7 @@ internal object MockScenario {
         val (lat, lon) = Geo.lerp(PANGYO, GANGNEUNG_STATION, 1.0 - remain.toDouble() / total)!!
         val member = Member(
             id = SISTER_ID,
-            profile = Profile(name = "언니네", initial = "언", color = 0xFFE5735A),
+            profile = Profile(name = "언니네", initial = "언", color = 0xFFCB30E0),
             statusAt = now,
             nav = NavState(
                 destination = GANGNEUNG_STATION,
@@ -95,7 +95,7 @@ internal object MockScenario {
         val remain = 238_000
         val member = Member(
             id = PARENTS_ID,
-            profile = Profile(name = "부모님", initial = "부", color = 0xFF5BAA7C),
+            profile = Profile(name = "부모님", initial = "부", color = 0xFF14A739),
             statusAt = now,
             nav = NavState(
                 destination = GANGNEUNG_STATION,
