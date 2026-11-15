@@ -25,7 +25,11 @@ data class NavState(
 
 data class NavWaypoint(
     val place: Place,
-    /** 이 경유지 도착 예정 시각 (epoch ms). */
-    val etaAt: Long,
-    val remainDistM: Int,
+    /**
+     * 이 경유지 도착 예정 시각 (epoch ms).
+     * null = 아직 모름: 우리 앱이 방금 넣어 내비가 경로를 계산 중인 경유지 (RouteManager 임시 상태).
+     */
+    val etaAt: Long?,
+    /** null = 아직 모름 ([etaAt]과 같은 경우). */
+    val remainDistM: Int?,
 )

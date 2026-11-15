@@ -28,8 +28,14 @@ class MyCar(context: Context) {
     //  지금은 에뮬 차량이 EV라 EV로 고정 (EnergySource 참고)
     private val energy: EnergySource = EvBatterySource(vehicle)
 
-    /** 내비 목적지·경유지·남은 거리. */
+    /**
+     * 내비가 지금 알려주는 목적지·경유지·남은 거리 (원본).
+     * 우리 앱이 경로를 보낸 직후 약 9초간 비어 있으므로, 화면·그룹 공유는 RouteManager.state를 쓴다.
+     */
     val nav: StateFlow<NavState> get() = navi.state
+
+    /** 내비에서 첫 응답을 받았는지 ([NaviSource.loaded]). */
+    val naviLoaded: StateFlow<Boolean> get() = navi.loaded
 
     /** 남은 배터리 또는 연료. */
     val energyLevel: StateFlow<EnergyLevel?> get() = energy.level

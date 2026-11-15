@@ -290,8 +290,8 @@ class MockGroupRepository : GroupRepository {
         val step = (drive.speedMps * dtSec).toInt()
         val newRemain = (remain - step).coerceAtLeast(0)
         val waypoints = nav.waypoints
-            .map { it.copy(remainDistM = it.remainDistM - step) }
-            .filter { it.remainDistM > 0 } // 지나간 경유지는 내비처럼 목록에서 빠진다
+            .map { it.copy(remainDistM = it.remainDistM?.minus(step)) }
+            .filter { (it.remainDistM ?: 1) > 0 } // 지나간 경유지는 내비처럼 목록에서 빠진다
         val total = nav.totalDistM ?: remain
         val point = Geo.lerp(drive.origin, dest, 1.0 - newRemain.toDouble() / total)
 

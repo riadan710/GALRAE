@@ -51,7 +51,7 @@ class GalraeApp : Application() {
     override fun onCreate() {
         super.onCreate()
         myCar = MyCar(this).also { it.start() }
-        route = RouteManager(nav = { myCar.nav.value }, send = myCar::requestRoute)
+        route = RouteManager(navi = myCar.nav, naviLoaded = myCar.naviLoaded, send = myCar::requestRoute)
         mockGroup = MockGroupRepository()
         MockCommandReceiver(mockGroup, route, meetupRecommender) { _meetupResult.value = it }.register(this)
         publishMyState()
@@ -92,7 +92,8 @@ class GalraeApp : Application() {
 
     /** 내 차 상태가 바뀔 때마다 그룹에 올린다 (Firebase에선 members/{uid} 쓰기). */
     private fun publishMyState() = appScope.launch {
-        combine(myCar.nav, myCar.energyLevel) { nav, energy -> nav to energy }
+        // 내비 원본(myCar.nav)이 아니라 RouteManager.state: 경로를 보낸 직후의 "경로 없음" 공백을 임시 경로로 메운 값
+        combine(route.state, myCar.energyLevel) { nav, energy -> nav to energy }
             .collect { (nav, energy) -> group.publishMyState(nav, energy) }
     }
 }

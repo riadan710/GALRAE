@@ -42,6 +42,11 @@ class NaviSource(context: Context) {
     private val _state = MutableStateFlow(NavState())
     val state: StateFlow<NavState> = _state.asStateFlow()
 
+    private val _loaded = MutableStateFlow(false)
+
+    /** 내비에서 목적지를 한 번이라도 받았는지. false인 동안의 [state]는 "경로 없음"이 아니라 "아직 모름"이다. */
+    val loaded: StateFlow<Boolean> = _loaded.asStateFlow()
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var pollJob: Job? = null
 
@@ -148,6 +153,7 @@ class NaviSource(context: Context) {
             // 경로가 없으면 이름·좌표가 빈 값으로 온다 (에뮬 실측)
             if (destinationInfo.name.isBlank() && coordOrNull(destinationInfo.latitude) == null) {
                 clear()
+                _loaded.value = true
                 return
             }
             val now = System.currentTimeMillis()
@@ -163,6 +169,7 @@ class NaviSource(context: Context) {
                     totalDistM = total,
                 )
             }
+            _loaded.value = true
             logState()
         }
 
