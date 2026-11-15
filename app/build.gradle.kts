@@ -31,8 +31,23 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // release 서명 키는 git 밖에서 공유한다 (local.properties의 release.* 값, local.properties.example 참고).
+    // 키가 없는 PC에서는 서명 없이 빌드된다
+    val releaseStoreFile = localConfig.getProperty("release.storeFile")?.let { rootProject.file(it) }
+    signingConfigs {
+        if (releaseStoreFile?.exists() == true) {
+            create("release") {
+                storeFile = releaseStoreFile
+                storePassword = localConfig.getProperty("release.storePassword")
+                keyAlias = localConfig.getProperty("release.keyAlias")
+                keyPassword = localConfig.getProperty("release.keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             optimization {
                 enable = true
                 packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")

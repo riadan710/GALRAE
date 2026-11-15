@@ -10,3 +10,6 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+# 갈래: release(R8) 실행 시 kotlin 클래스가 다른 패키지로 옮겨지며
+# IllegalAccessError로 앱이 바로 꺼졌다 (11/15 에뮬 실측). 이름·패키지를 바꾸지 않게 한다
+-dontobfuscate

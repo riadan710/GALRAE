@@ -7,3 +7,10 @@
 
 # 카카오 로컬 REST API 키
 kakao.restApiKey=
+
+# release 서명 (제출용 APK). keystore 파일(*.jks)과 비밀번호는 팀원끼리 직접 공유
+# storeFile은 프로젝트 루트 기준 경로
+release.storeFile=galrae-release.jks
+release.storePassword=
+release.keyAlias=galrae
+release.keyPassword=
