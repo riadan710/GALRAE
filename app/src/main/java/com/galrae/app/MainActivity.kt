@@ -9,12 +9,7 @@ import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import com.galrae.app.ui.group.GroupScreen
 import com.galrae.app.service.KeepAliveService
 import com.galrae.app.ui.theme.GALRAETheme
 
@@ -30,12 +25,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             GALRAETheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Text(
-                        text = stringResource(R.string.app_name),
-                        modifier = Modifier.padding(innerPadding),
-                    )
-                }
+                GroupScreen((application as GalraeApp).group, lifecycle, onExit = { finish() })
             }
         }
 
