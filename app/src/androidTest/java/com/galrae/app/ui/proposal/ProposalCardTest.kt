@@ -65,4 +65,18 @@ class ProposalCardTest {
         compose.onNodeWithTag("proposal_decline").assertIsEnabled()
         compose.onNodeWithText("경유지 교체 필요 (2/2)").assertExists()
     }
+    @Test fun fullWaypointsOpenReplacementPlaceholderWithoutAccepting() {
+        var replacements = 0
+        var accepts = 0
+        compose.setContent {
+            GALRAETheme {
+                Box(Modifier.width(840.dp)) {
+                    ProposalCard(original, members, "me", 1_000, 2, { accepts++ }, {}, onReplace = { replacements++ })
+                }
+            }
+        }
+        compose.onNodeWithTag("proposal_accept").assertIsEnabled().performClick()
+        compose.runOnIdle { assertEquals(1, replacements); assertEquals(0, accepts) }
+    }
+
 }

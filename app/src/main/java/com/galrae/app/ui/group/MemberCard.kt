@@ -28,6 +28,22 @@ import java.util.Locale
 
 @Composable
 internal fun MemberCard(member: Member, isMe: Boolean, onClick: () -> Unit) {
+    Surface(onClick = onClick, shape = RoundedCornerShape(24.dp), color = Color.White,
+        border = BorderStroke(2.dp, OutlineGray), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(28.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            MemberSummary(member, isMe, showChevron = true)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                val arrival = member.nav.etaAt?.let { SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(it)) }
+                Text(arrival ?: stringResource(R.string.destination_unset), style = MaterialTheme.typography.titleLarge)
+                Text(member.location?.label?.ifBlank { null } ?: member.nav.destination?.name ?: stringResource(R.string.location_unknown),
+                    style = MaterialTheme.typography.bodyMedium, color = TextSecondary, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+@Composable
+internal fun MemberSummary(member: Member, isMe: Boolean, showChevron: Boolean = false) {
     val status = when {
         !member.online -> R.string.member_offline
         else -> when (member.status) {
@@ -43,35 +59,24 @@ internal fun MemberCard(member: Member, isMe: Boolean, onClick: () -> Unit) {
             MemberStatus.NOT_JOINED -> R.string.member_not_joined
         }
     }
-    Surface(onClick = onClick, shape = RoundedCornerShape(24.dp), color = Color.White,
-        border = BorderStroke(2.dp, OutlineGray), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(28.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                MemberAvatar(member.profile, isMe = isMe)
-                Text(member.profile.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                member.energy?.let { energy ->
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (energy.type == EnergyType.EV) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(32.dp, 20.dp).background(Color(0xFFB5B5B5), RoundedCornerShape(4.dp))) {
-                                    Box(Modifier.fillMaxHeight().fillMaxWidth(energy.percent.coerceIn(0, 100) / 100f).background(Color.Black, RoundedCornerShape(4.dp)))
-                                }
-                                Box(Modifier.size(2.dp, 8.dp).background(Color(0xFFB5B5B5)))
-                            }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+        MemberAvatar(member.profile, isMe = isMe)
+        Text(member.profile.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        member.energy?.let { energy ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (energy.type == EnergyType.EV) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(32.dp, 20.dp).background(Color(0xFFB5B5B5), RoundedCornerShape(4.dp))) {
+                            Box(Modifier.fillMaxHeight().fillMaxWidth(energy.percent.coerceIn(0, 100) / 100f).background(Color.Black, RoundedCornerShape(4.dp)))
                         }
-                        Text(stringResource(if (energy.type == EnergyType.FUEL) R.string.member_fuel_percent else R.string.member_energy_percent, energy.percent), style = MaterialTheme.typography.bodyMedium)
+                        Box(Modifier.size(2.dp, 8.dp).background(Color(0xFFB5B5B5)))
                     }
                 }
-                Text(stringResource(status), style = MaterialTheme.typography.labelMedium, color = NeutralChipText,
-                    modifier = Modifier.background(NeutralChip, RoundedCornerShape(16.dp)).padding(horizontal = 18.dp, vertical = 8.dp))
-                Image(painterResource(R.drawable.ic_member_chevron), null, Modifier.size(20.dp, 48.dp))
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                val arrival = member.nav.etaAt?.let { SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(it)) }
-                Text(arrival ?: stringResource(R.string.destination_unset), style = MaterialTheme.typography.titleLarge)
-                Text(member.location?.label?.ifBlank { null } ?: member.nav.destination?.name ?: stringResource(R.string.location_unknown),
-                    style = MaterialTheme.typography.bodyMedium, color = TextSecondary, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(stringResource(if (energy.type == EnergyType.FUEL) R.string.member_fuel_percent else R.string.member_energy_percent, energy.percent), style = MaterialTheme.typography.bodyMedium)
             }
         }
+        Text(stringResource(status), style = MaterialTheme.typography.labelMedium, color = NeutralChipText,
+            modifier = Modifier.background(NeutralChip, RoundedCornerShape(16.dp)).padding(horizontal = 18.dp, vertical = 8.dp))
+        if (showChevron) Image(painterResource(R.drawable.ic_member_chevron), null, Modifier.size(20.dp, 48.dp))
     }
 }

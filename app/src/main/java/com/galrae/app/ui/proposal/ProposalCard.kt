@@ -42,6 +42,7 @@ fun ProposalCard(
     onAccept: () -> Unit,
     onDecline: () -> Unit,
     modifier: Modifier = Modifier,
+    onReplace: (() -> Unit)? = null,
 ) {
     val onlyMe = proposal.toId != null
     val accent = if (onlyMe) Color.Black else BrandBlue
@@ -119,8 +120,8 @@ fun ProposalCard(
                     waypointCount >= 2 -> stringResource(R.string.proposal_replace_required)
                     else -> stringResource(R.string.proposal_add_waypoint, waypointCount)
                 }
-                GalraeButton(acceptText, onAccept, Modifier.weight(1f).testTag("proposal_accept"),
-                    if (onlyMe) GalraeButtonStyle.PRIMARY else GalraeButtonStyle.BRAND, canRespond && waypointCount < 2)
+                GalraeButton(acceptText, { if (waypointCount >= 2) onReplace?.invoke() else onAccept() }, Modifier.weight(1f).testTag("proposal_accept"),
+                    if (onlyMe) GalraeButtonStyle.PRIMARY else GalraeButtonStyle.BRAND, canRespond && (waypointCount < 2 || onReplace != null))
             }
         }
     }
