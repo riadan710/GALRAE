@@ -5,6 +5,11 @@ import com.galrae.app.car.MyCar
 import com.galrae.app.group.GroupRepository
 import com.galrae.app.group.mock.MockCommandReceiver
 import com.galrae.app.group.mock.MockGroupRepository
+import com.galrae.app.meetup.KakaoPlaceSearch
+import com.galrae.app.meetup.MeetupRecommender
+import com.galrae.app.meetup.MeetupResult
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -29,11 +34,15 @@ class GalraeApp : Application() {
     /** 화면·Flow 로직은 이것만 쓴다. Firebase로 바꿀 때 여기만 바꾼다. */
     val group: GroupRepository get() = mockGroup
 
+    val meetupRecommender = MeetupRecommender(KakaoPlaceSearch(BuildConfig.KAKAO_REST_API_KEY)::search)
+    private val _meetupResult = MutableStateFlow<MeetupResult?>(null)
+    val meetupResult = _meetupResult.asStateFlow()
+
     override fun onCreate() {
         super.onCreate()
         myCar = MyCar(this).also { it.start() }
         mockGroup = MockGroupRepository()
-        MockCommandReceiver(mockGroup).register(this)
+        MockCommandReceiver(mockGroup, meetupRecommender) { _meetupResult.value = it }.register(this)
         publishMyState()
     }
 

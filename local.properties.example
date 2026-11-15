@@ -4,3 +4,6 @@
 # sdk.dir은 Android Studio가 자동으로 넣습니다.
 #
 # 이후 Firebase·서명 키 등을 붙일 때 필요한 키 이름을 여기에 추가합니다.
+
+# 카카오 로컬 REST API 키
+kakao.restApiKey=
