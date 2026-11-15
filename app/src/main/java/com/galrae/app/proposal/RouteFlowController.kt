@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
  * - 다른 멤버의 목적지 제안이 오면 → [RouteSheet.DestinationProposed]. 변경하기 = 내 내비 목적지 변경 + 수락 응답
  * - 상세 화면 [여기로 가기] → [followDestination] → [RouteSheet.FollowDestination]. 변경하기 = 내 목적지 변경 (5-2)
  * - 상세 화면 [같이 들르기] → [joinWaypoint]. 자리가 있으면 바로 추가, 꽉 찼으면 [RouteSheet.ReplaceWaypoint] (5-3)
+ * - 경유지 제안(Flow 2 카드, 중간에 모이기) 수락 → [acceptWaypointProposal]. 같이 들르기와 같고, 내비에 넣은 뒤 수락 응답
  *
  * 수락한 차량만 자기 내비를 바꾼다. 서버나 다른 차량이 대신 바꾸지 않는다 (docs 9-2).
  */
@@ -76,6 +77,23 @@ class RouteFlowController(
     fun joinWaypoint(place: Place, memberId: String, etaAt: Long?) =
         addWaypoint(place, WaypointOrigin.MemberWaypoint(memberId, etaAt))
 
+    /**
+     * 경유지 제안의 [수락] (Flow 2 상단 카드의 [같이 쉬어가기] 등, 중간에 모이기의 [경유지 추가하기]).
+     * 내 경유지에 넣는 데 성공했을 때만 수락으로 응답한다. 꽉 찼으면 교체 시트를 띄우고, 교체했을 때 응답한다.
+     * 이미 내 경유지에 있으면 내비는 그대로 두고 수락만 한다.
+     *
+     * @return 응답할 수 있는 제안이 아니면(이미 응답·만료·다른 종류) false. 아무것도 하지 않는다
+     */
+    fun acceptWaypointProposal(proposalId: String): Boolean {
+        val p = group.proposals.value.find { it.id == proposalId }
+        if (p == null || p.kind !in WAYPOINT_KINDS || !p.isOpenFor(group.myId, now())) {
+            log("accept $proposalId: not respondable")
+            return false
+        }
+        addWaypoint(p.place, WaypointOrigin.FromProposal(p))
+        return true
+    }
+
     /** 주 버튼 (목적지 제안하기 / 목적지 변경하기). 교체 시트에는 주 버튼이 없다 → [onReplace]. */
     fun onPrimary(sheetId: Long) {
         if (sheets.current.value?.content is RouteSheet.ReplaceWaypoint) return
@@ -107,6 +125,7 @@ class RouteFlowController(
         when (val r = route.replaceWaypoint(index, s.place)) {
             is RouteResult.Sent -> {
                 log("waypoint ${index + 1} replaced ${old.name} → ${s.place.name}, dropped=${r.dropped.map { it.name }}")
+                respondAccepted(s.origin)
                 emit(RouteFlowEvent.WaypointReplaced(old, s.place, r.dropped))
             }
             is RouteResult.Failed -> {
@@ -134,7 +153,11 @@ class RouteFlowController(
                 log("keep route, proposal ${s.proposal.id} (byUser=$byUser)")
             }
             is RouteSheet.FollowDestination -> log("keep destination, not following ${s.place.name} (byUser=$byUser)")
-            is RouteSheet.ReplaceWaypoint -> log("keep waypoints, not adding ${s.place.name} (byUser=$byUser)")
+            // 제안을 수락했다가 교체 시트에서 그대로 가기를 눌렀으면 거절. 만료·다른 시트로 덮임은 응답 없음 (카드에서 다시 고를 수 있게)
+            is RouteSheet.ReplaceWaypoint -> {
+                if (byUser) respond(s.origin, Answer.DECLINED)
+                log("keep waypoints, not adding ${s.place.name} (byUser=$byUser)")
+            }
         }
     }
 
@@ -142,15 +165,21 @@ class RouteFlowController(
         when (val r = route.addWaypoint(place)) {
             is AddResult.Added -> {
                 log("waypoint added ${place.name}, dropped=${r.route.dropped.map { it.name }}")
+                respondAccepted(origin)
                 emit(RouteFlowEvent.WaypointAdded(place, r.route.dropped))
             }
             AddResult.AlreadyIncluded -> {
                 log("waypoint ${place.name} already included")
+                respondAccepted(origin)
                 emit(RouteFlowEvent.WaypointAlreadyIncluded(place))
             }
             is AddResult.NeedReplace -> {
                 log("sheet: replace waypoint → ${place.name}, current=${r.current.map { it.name }}")
-                sheets.show(RouteSheet.ReplaceWaypoint(place, origin, route.state.value.waypoints))
+                // 제안에서 왔으면 제안이 끝나기 전에 시트도 닫히게 한다 (만료된 제안에 수락하지 않게)
+                val duration = (origin as? WaypointOrigin.FromProposal)
+                    ?.let { minOf(CountdownSheet.DEFAULT_DURATION_MS, it.proposal.expiresAt - now()) }
+                    ?: CountdownSheet.DEFAULT_DURATION_MS
+                sheets.show(RouteSheet.ReplaceWaypoint(place, origin, route.state.value.waypoints), duration)
             }
             is AddResult.Failed -> {
                 log("add waypoint ${place.name} failed: ${r.reason}")
@@ -158,6 +187,29 @@ class RouteFlowController(
             }
         }
     }
+
+    /** 제안에서 온 경유지를 내 경로에 넣었으면 수락으로 응답한다. */
+    private fun respondAccepted(origin: WaypointOrigin) = respond(origin, Answer.ACCEPTED)
+
+    /** 제안에서 온 경유지면 그 제안에 응답한다. 그 사이 만료·응답됐으면 하지 않는다. */
+    private fun respond(origin: WaypointOrigin, answer: Answer) {
+        val p = (origin as? WaypointOrigin.FromProposal)?.proposal ?: return
+        val latest = group.proposals.value.find { it.id == p.id }
+        if (latest == null || !latest.isOpenFor(group.myId, now())) {
+            log("proposal ${p.id} closed before $answer, not responding")
+            return
+        }
+        group.respond(p.id, answer)
+        log("$answer ${p.id} (${p.kind}) → waypoint ${p.place.name}")
+    }
+
+    /** 내가 아직 응답할 수 있는 제안인지 (다른 멤버가 나 또는 모두에게 보냈고, 열려 있고, 내 응답이 대기). */
+    private fun Proposal.isOpenFor(myId: String, t: Long) =
+        fromId != myId &&
+            (toId == null || toId == myId) &&
+            status == ProposalStatus.OPEN &&
+            responses[myId] == Answer.PENDING &&
+            t < expiresAt
 
     /** 여기로 가기 수락. 경유지는 유지한다. */
     private fun changeDestination(place: Place) {
@@ -195,13 +247,7 @@ class RouteFlowController(
     private fun onProposals(list: List<Proposal>) {
         val t = now()
         val incoming = list.filter {
-            it.kind == ProposalKind.DESTINATION &&
-                it.fromId != group.myId &&
-                (it.toId == null || it.toId == group.myId) &&
-                it.status == ProposalStatus.OPEN &&
-                it.responses[group.myId] == Answer.PENDING &&
-                t < it.expiresAt &&
-                it.id !in shownProposals
+            it.kind == ProposalKind.DESTINATION && it.isOpenFor(group.myId, t) && it.id !in shownProposals
         }
         // 여러 개가 한꺼번에 오면 가장 최근 것만 띄운다 (나중 제안이 이전 제안을 대신)
         val p = incoming.maxByOrNull { it.createdAt } ?: return
@@ -217,6 +263,9 @@ class RouteFlowController(
 
     private companion object {
         const val TAG = "GALRAE/RouteFlow"
+
+        /** 수락하면 내 경유지가 추가되는 제안. */
+        val WAYPOINT_KINDS = setOf(ProposalKind.AUTO_STOP, ProposalKind.MEETUP)
     }
 }
 

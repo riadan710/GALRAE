@@ -48,4 +48,11 @@ sealed interface RouteSheet {
 sealed interface WaypointOrigin {
     /** 멤버 상세 화면의 [같이 들르기]. [etaAt]은 그 멤버의 도착 예정 시각. */
     data class MemberWaypoint(val memberId: String, val etaAt: Long?) : WaypointOrigin
+
+    /**
+     * 경유지 제안(Flow 2 자동 제안·중간에 모이기)의 수락. 교체하면 그때 수락, [그대로 가기]를 누르면 거절로 응답한다.
+     * 시트가 만료되면 응답하지 않는다.
+     * 카드 문구는 [Proposal.fromId]·[Proposal.summary]로 만든다.
+     */
+    data class FromProposal(val proposal: Proposal) : WaypointOrigin
 }

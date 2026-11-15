@@ -45,6 +45,7 @@ import kotlinx.coroutines.launch
  * | `sheet-replace` | `1|2` | 떠 있는 교체 시트에서 내 경유지 1·2의 [교체] |
  * | `follow` | `장소` | 상세 화면 [여기로 가기] (확인 시트) |
  * | `join-wp` | `멤버:장소` | 상세 화면 [같이 들르기] (그 멤버의 경유지, 꽉 찼으면 교체 시트) |
+ * | `accept-wp` | `제안 id` 또는 `x` | 경유지 제안(Flow 2·중간에 모이기) 수락. `x`면 가장 최근 제안 |
  *
  * 멤버는 이름(언니네·부모님) 또는 id(sister·parents), 장소는 [MockScenario.demoPlaces]의 이름.
  * 예: `--es c propose-dest --es a "경포해수욕장"`, `--es c soc --es a "부모님:15"`
@@ -155,6 +156,12 @@ class MockCommandReceiver(
                 routeFlow.onReplace(routeFlow.sheet.value?.id ?: error("떠 있는 시트 없음"), index)
             }
             "follow" -> routeFlow.followDestination(place(arg))
+            "accept-wp" -> {
+                val id = if (arg != "x") arg else mock.proposals.value
+                    .filter { it.kind == ProposalKind.AUTO_STOP || it.kind == ProposalKind.MEETUP }
+                    .maxByOrNull { it.createdAt }?.id ?: error("경유지 제안 없음")
+                Log.i(TAG, "accept-wp $id → ${routeFlow.acceptWaypointProposal(id)}")
+            }
             "join-wp" -> {
                 val (member, place) = memberAndPlace(arg, defaultMember = null)
                 // 화면과 같게 그 멤버 경유지의 값(장소·도착 시각)을 쓴다

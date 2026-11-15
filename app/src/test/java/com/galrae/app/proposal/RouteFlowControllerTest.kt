@@ -203,6 +203,95 @@ class RouteFlowControllerTest {
         assertEquals(listOf(gyeongpo, pyeongchang), route.waypoints())
     }
 
+    // ── 경유지 제안 수락 (Flow 2·중간에 모이기) ──
+
+    @Test
+    fun `경유지 제안을 수락하면 내 경유지에 넣고 수락으로 응답한다`() = runBlocking {
+        route.state.value = routeWith()
+        group.receive(proposal("s1", kind = ProposalKind.AUTO_STOP, place = hoengseong))
+        assertTrue(controller.acceptWaypointProposal("s1"))
+        assertEquals(listOf(hoengseong), route.waypoints())
+        assertEquals(listOf("s1" to Answer.ACCEPTED), group.answers)
+    }
+
+    @Test
+    fun `이미 내 경유지에 있으면 내비는 그대로 두고 수락만 한다`() = runBlocking {
+        route.state.value = routeWith(hoengseong)
+        group.receive(proposal("s1", kind = ProposalKind.MEETUP, place = hoengseong))
+        controller.acceptWaypointProposal("s1")
+        assertEquals(listOf(hoengseong), route.waypoints())
+        assertEquals(listOf("s1" to Answer.ACCEPTED), group.answers)
+    }
+
+    @Test
+    fun `꽉 찼으면 교체 시트를 띄우고 교체했을 때 수락한다`() = runBlocking {
+        route.state.value = routeWith(hoengseong, pyeongchang)
+        val p = proposal("s1", kind = ProposalKind.AUTO_STOP, place = market, expiresIn = 15_000)
+        group.receive(p)
+        controller.acceptWaypointProposal("s1")
+        val shown = awaitSheet()
+        assertEquals(WaypointOrigin.FromProposal(p), (shown.content as RouteSheet.ReplaceWaypoint).origin)
+        assertTrue(group.answers.isEmpty()) // 교체 전에는 응답하지 않는다
+
+        controller.onReplace(shown.id, 0)
+        assertEquals(listOf(market, pyeongchang), route.waypoints())
+        assertEquals(listOf("s1" to Answer.ACCEPTED), group.answers)
+    }
+
+    @Test
+    fun `교체 시트에서 그대로 가기를 누르면 거절로 응답한다`() = runBlocking {
+        route.state.value = routeWith(hoengseong, pyeongchang)
+        group.receive(proposal("s1", kind = ProposalKind.AUTO_STOP, place = market, expiresIn = 15_000))
+        controller.acceptWaypointProposal("s1")
+        controller.onSecondary(awaitSheet().id)
+        assertEquals(listOf(hoengseong, pyeongchang), route.waypoints())
+        assertEquals(listOf("s1" to Answer.DECLINED), group.answers)
+    }
+
+    @Test
+    fun `같이 들르기의 교체 시트는 그대로 가기를 눌러도 응답할 제안이 없다`() = runBlocking {
+        route.state.value = routeWith(hoengseong, pyeongchang)
+        controller.joinWaypoint(market, "sister", etaAt = null)
+        controller.onSecondary(awaitSheet().id)
+        assertTrue(group.answers.isEmpty())
+    }
+
+    @Test
+    fun `교체 시트는 제안이 끝날 때 같이 닫힌다`() = runBlocking {
+        route.state.value = routeWith(hoengseong, pyeongchang)
+        group.receive(proposal("s1", kind = ProposalKind.AUTO_STOP, place = market, expiresIn = 200))
+        controller.acceptWaypointProposal("s1")
+        assertTrue(awaitSheet().expiresAt <= System.currentTimeMillis() + 200)
+        delay(400)
+        assertNull(controller.sheet.value)
+        assertTrue(group.answers.isEmpty())
+    }
+
+    @Test
+    fun `응답할 수 없는 제안은 수락하지 않는다`() = runBlocking {
+        route.state.value = routeWith()
+        group.receive(proposal("d1")) // 목적지 제안
+        group.receive(proposal("s1", kind = ProposalKind.AUTO_STOP, place = hoengseong, expiresIn = -1))
+        group.receive(proposal("s2", kind = ProposalKind.AUTO_STOP, place = hoengseong, from = "me"))
+        controller.onSecondary(awaitSheet().id) // d1 시트 닫기 (DECLINED 기록됨)
+        group.answers.clear()
+
+        assertEquals(false, controller.acceptWaypointProposal("d1"))
+        assertEquals(false, controller.acceptWaypointProposal("s1"))
+        assertEquals(false, controller.acceptWaypointProposal("s2"))
+        assertEquals(false, controller.acceptWaypointProposal("none"))
+        assertTrue(route.waypoints().isEmpty())
+        assertTrue(group.answers.isEmpty())
+    }
+
+    @Test
+    fun `내비 반영에 실패하면 경유지 제안도 수락하지 않는다`() = runBlocking {
+        route.state.value = NavState() // 경로 없음 → NO_ROUTE
+        group.receive(proposal("s1", kind = ProposalKind.AUTO_STOP, place = hoengseong))
+        controller.acceptWaypointProposal("s1")
+        assertTrue(group.answers.isEmpty())
+    }
+
     private fun routeWith(vararg waypoints: Place) = NavState(
         destination = station,
         waypoints = waypoints.map { NavWaypoint(it, etaAt = null, remainDistM = null) },
@@ -219,10 +308,16 @@ class RouteFlowControllerTest {
         controller.sheet.value!!
     }
 
-    private fun proposal(id: String, from: String = "sister", expiresIn: Long = 5_000): Proposal {
+    private fun proposal(
+        id: String,
+        from: String = "sister",
+        expiresIn: Long = 5_000,
+        kind: ProposalKind = ProposalKind.DESTINATION,
+        place: Place = gyeongpo,
+    ): Proposal {
         val now = System.currentTimeMillis()
         return Proposal(
-            id = id, kind = ProposalKind.DESTINATION, fromId = from, place = gyeongpo,
+            id = id, kind = kind, fromId = from, place = place,
             createdAt = now, expiresAt = now + expiresIn,
             responses = mapOf(from to Answer.ACCEPTED, "me" to Answer.PENDING),
         )
@@ -289,6 +384,9 @@ class RouteFlowControllerTest {
 
         override fun respond(proposalId: String, answer: Answer) {
             answers += proposalId to answer
+            proposals.update { list ->
+                list.map { if (it.id == proposalId) it.copy(responses = it.responses + (myId to answer)) else it }
+            }
         }
     }
 }
