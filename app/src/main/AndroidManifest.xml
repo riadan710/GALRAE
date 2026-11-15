@@ -7,7 +7,11 @@
         android:name="android.hardware.type.automotive"
         android:required="true" />
 
+    <!-- 내비 목적지·경유지 조회 (Normal, 설치 시 자동 부여) -->
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE" />
+
     <application
+        android:name=".GalraeApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
