@@ -43,11 +43,13 @@ import java.util.concurrent.ConcurrentHashMap
  * @param navi 내비 원본 상태 (MyCar.nav)
  * @param naviLoaded 내비 첫 응답을 받았는지 (MyCar.naviLoaded). 앱 시작 때 읽은 기존 경로를 "변경"으로 보지 않기 위해 쓴다
  * @param send 내비에 경로를 보내는 함수 (MyCar.requestRoute)
+ * @param placeStore 보낸 장소 좌표를 앱 재시작 후에도 남겨 두는 저장소
  */
 class RouteManager(
     private val navi: StateFlow<NavState>,
     private val naviLoaded: StateFlow<Boolean>,
     private val send: (destination: Place, waypoints: List<Place>) -> Unit,
+    private val placeStore: KnownPlaceStore,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) {
 
@@ -66,8 +68,13 @@ class RouteManager(
     /** 보냈지만 내비가 [CONFIRM_TIMEOUT_MS] 안에 반영하지 않은 경로의 목적지 ("경로를 바꾸지 못했어요" 안내용). */
     val routeFailures: SharedFlow<Place> = _routeFailures.asSharedFlow()
 
-    /** 우리가 내비에 보낸 장소의 좌표. 키는 장소 이름 (내비가 돌려주는 값에서 찾을 수 있는 건 이름뿐). */
-    private val knownPlaces = ConcurrentHashMap<String, Place>()
+    /**
+     * 마지막으로 내비에 보낸 경로의 장소(좌표 포함). 키는 장소 이름 (내비가 돌려주는 값에서 찾을 수 있는 건 이름뿐).
+     * 보낼 때마다 그 경로의 장소로 바꾸고 [placeStore]에 저장해, 앱을 다시 켜도 기존 경유지를 다시 보낼 수 있게 한다.
+     */
+    private val knownPlaces = ConcurrentHashMap<String, Place>().apply {
+        placeStore.load().forEach { put(it.name, it) }
+    }
 
     private val lock = Any()
 
@@ -126,12 +133,12 @@ class RouteManager(
         if (!destination.hasCoord) return RouteResult.Failed(Reason.NO_COORD)
         val (keep, dropped) = waypoints.partition { it.hasCoord }
         if (dropped.isNotEmpty()) Log.w(TAG, "좌표 없는 경유지는 빠짐: ${dropped.map { it.name }}")
-        (keep + destination).forEach { knownPlaces[it.name] = it }
         runCatching { send(destination, keep) }
             .onFailure {
                 Log.e(TAG, "send failed: $it")
                 return RouteResult.Failed(Reason.SEND_FAILED)
             }
+        rememberPlaces(keep + destination)
         startPending(destination, keep)
         return RouteResult.Sent(destination, keep, dropped)
     }
@@ -216,6 +223,15 @@ class RouteManager(
             Log.i(TAG, "user changed destination → ${it.name}")
             _userDestinationChanges.tryEmit(it)
         }
+    }
+
+    /** 지금 보낸 경로의 장소만 남긴다 (예전 경로의 장소가 계속 쌓이지 않게). */
+    private fun rememberPlaces(places: List<Place>) {
+        synchronized(knownPlaces) {
+            knownPlaces.clear()
+            places.forEach { knownPlaces[it.name] = it }
+        }
+        placeStore.save(places)
     }
 
     private fun withKnownCoord(place: Place): Place =

@@ -13,6 +13,7 @@ import com.galrae.app.meetup.AutoStopProposer
 import com.galrae.app.meetup.KakaoPlaceSearch
 import com.galrae.app.meetup.MeetupRecommender
 import com.galrae.app.meetup.MeetupResult
+import com.galrae.app.route.PrefsKnownPlaceStore
 import com.galrae.app.route.RouteManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,7 +52,12 @@ class GalraeApp : Application() {
     override fun onCreate() {
         super.onCreate()
         myCar = MyCar(this).also { it.start() }
-        route = RouteManager(navi = myCar.nav, naviLoaded = myCar.naviLoaded, send = myCar::requestRoute)
+        route = RouteManager(
+            navi = myCar.nav,
+            naviLoaded = myCar.naviLoaded,
+            send = myCar::requestRoute,
+            placeStore = PrefsKnownPlaceStore(this),
+        )
         mockGroup = MockGroupRepository()
         MockCommandReceiver(mockGroup, route, meetupRecommender) { _meetupResult.value = it }.register(this)
         publishMyState()
