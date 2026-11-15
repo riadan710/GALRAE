@@ -21,6 +21,8 @@ data class Member(
     val location: MemberLocation? = null,
     /** 받는 쪽에서 lastSeen으로 판단해 채운다 (docs 1-6). Mock은 항상 true. */
     val online: Boolean = true,
+    /** 연속 운전 시작 시각(epoch ms). null이면 미측정. 현재는 가상 차량 시연에서만 설정한다. */
+    val driveStartAt: Long? = null,
 )
 
 data class Profile(

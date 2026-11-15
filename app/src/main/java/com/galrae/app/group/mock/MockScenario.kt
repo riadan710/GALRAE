@@ -47,6 +47,14 @@ internal object MockScenario {
 
     val meProfile = Profile(name = "나", initial = "나", color = 0xFF4F8EF7)
 
+    /** PoC 진입점에서만 내 차의 누락 위치·목적지를 보완한다. 실제 측정값은 유지한다. */
+    fun recommendationMembers(members: List<Member>, myId: String): List<Member> = members.map { m ->
+        if (m.id != myId) m else m.copy(
+            location = m.location ?: MemberLocation(PANGYO.lat!!, PANGYO.lon!!, "PoC 판교 목업"),
+            nav = if (m.nav.destination == null) m.nav.copy(destination = GANGNEUNG_STATION) else m.nav,
+        )
+    }
+
     /** 가상 차량이 달리는 방식. [origin]은 위치 보간 출발점. */
     data class Drive(val origin: Place, val speedMps: Double)
 
