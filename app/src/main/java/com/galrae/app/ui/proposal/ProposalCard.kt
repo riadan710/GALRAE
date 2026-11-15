@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -12,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -108,11 +110,15 @@ fun ProposalCard(
             if (proposal.summary?.requiresFacilityVerification == true) {
                 Text(stringResource(R.string.proposal_facility_unverified), color = TextSecondary, style = MaterialTheme.typography.bodySmall)
             }
+            // 카운트다운은 만료 때 실행될 버튼에 붙인다. 자리가 있으면 수락(자동 추가), 꽉 찼으면 그대로 가기
+            // (바꿀 자리는 사용자만 고를 수 있어서. RouteFlowController.scheduleAutoAccept)
+            val countdown: @Composable () -> Unit = { CountdownIndicator(proposal.remainingSeconds(now)) }
+            val countdownOnAccept = waypointCount < 2
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 GalraeButton(
                     stringResource(if (answer == Answer.DECLINED) R.string.proposal_declined else R.string.proposal_keep_going),
                     onDecline, Modifier.weight(1f).testTag("proposal_decline"), GalraeButtonStyle.SECONDARY, canRespond,
-                    leading = { CountdownIndicator(proposal.remainingSeconds(now)) },
+                    leading = if (countdownOnAccept) null else countdown,
                 )
                 val acceptText = when {
                     answer == Answer.ACCEPTED -> stringResource(R.string.proposal_accepted)
@@ -121,18 +127,24 @@ fun ProposalCard(
                     else -> stringResource(R.string.proposal_add_waypoint, waypointCount)
                 }
                 GalraeButton(acceptText, { if (waypointCount >= 2) onReplace?.invoke() else onAccept() }, Modifier.weight(1f).testTag("proposal_accept"),
-                    if (onlyMe) GalraeButtonStyle.PRIMARY else GalraeButtonStyle.BRAND, canRespond && (waypointCount < 2 || onReplace != null))
+                    if (onlyMe) GalraeButtonStyle.PRIMARY else GalraeButtonStyle.BRAND, canRespond && (waypointCount < 2 || onReplace != null),
+                    leading = if (countdownOnAccept && canRespond) countdown else null)
             }
         }
     }
 }
 
-/** 카운트다운 원형 표시 (보조 버튼 앞). Flow 1 하단 시트에서도 쓴다. */
+/**
+ * 카운트다운 원형 표시 (만료 때 실행될 버튼 앞). Flow 1 하단 시트에서도 쓴다.
+ * 버튼 글자색을 따라 그린다 (검정·파랑 버튼에서는 흰색).
+ */
 @Composable
 internal fun CountdownIndicator(seconds: Int) {
+    val color = LocalContentColor.current
+    val tint = ColorFilter.tint(color)
     Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
-        Image(painterResource(R.drawable.ic_countdown_track), null, Modifier.requiredSize(46.154.dp))
-        Image(painterResource(R.drawable.ic_countdown_ring), null, Modifier.requiredSize(46.154.dp))
-        Text(seconds.toString(), fontSize = 23.462.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+        Image(painterResource(R.drawable.ic_countdown_track), null, Modifier.requiredSize(46.154.dp), colorFilter = tint)
+        Image(painterResource(R.drawable.ic_countdown_ring), null, Modifier.requiredSize(46.154.dp), colorFilter = tint)
+        Text(seconds.toString(), fontSize = 23.462.sp, fontWeight = FontWeight.Bold, color = color)
     }
 }

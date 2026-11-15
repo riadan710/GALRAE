@@ -9,6 +9,7 @@ import com.galrae.app.group.model.MeetSummary
 import com.galrae.app.group.model.Member
 import com.galrae.app.group.model.Proposal
 import com.galrae.app.group.model.ProposalKind
+import com.galrae.app.group.model.ProposalStatus
 import com.galrae.app.group.model.TextMessage
 import com.galrae.app.group.model.ProposalTrigger
 import com.galrae.app.place.Place
@@ -46,7 +47,7 @@ class RouteFlowControllerTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val group = FakeGroup()
     private val route = FakeRoute()
-    private val controller = RouteFlowController(group, route, scope, log = {})
+    private val controller = RouteFlowController(group, route, scope, log = {}, sheetDurationMs = SHEET_MS)
 
     @After
     fun tearDown() = scope.cancel()
@@ -89,13 +90,33 @@ class RouteFlowControllerTest {
     }
 
     @Test
-    fun `카운트다운이 끝나면 내비는 그대로 두고 응답하지 않는다`() = runBlocking {
-        group.receive(proposal("p1", expiresIn = 100))
-        awaitSheet()
-        delay(300)
+    fun `받은 목적지 제안은 카운트다운이 끝나면 제안이 끝나기 전에 수락한다`() = runBlocking {
+        val p = proposal("p1", expiresIn = 600)
+        group.receive(p)
+        assertTrue(awaitSheet().expiresAt < p.expiresAt)
+        delay(700)
         assertNull(controller.sheet.value)
+        assertEquals(listOf(gyeongpo), route.destinations)
+        assertEquals(listOf("p1" to Answer.ACCEPTED), group.answers)
+    }
+
+    @Test
+    fun `카운트다운 중 제안이 닫혔으면 만료돼도 따르지 않는다`() = runBlocking {
+        group.receive(proposal("p1", expiresIn = 600))
+        awaitSheet()
+        group.proposals.update { list -> list.map { it.copy(status = ProposalStatus.CANCELLED) } }
+        delay(700)
         assertTrue(route.destinations.isEmpty())
         assertTrue(group.answers.isEmpty())
+    }
+
+    @Test
+    fun `내비 목적지 변경 시트는 카운트다운이 끝나면 그룹에 제안한다`() = runBlocking {
+        route.changes.emit(gyeongpo)
+        awaitSheet()
+        delay(SHEET_MS + 200)
+        assertNull(controller.sheet.value)
+        assertEquals(listOf(ProposalKind.DESTINATION to gyeongpo), group.sent)
     }
 
     @Test
@@ -136,6 +157,15 @@ class RouteFlowControllerTest {
         controller.followDestination(gyeongpo)
         controller.onSecondary(awaitSheet().id)
         assertTrue(route.destinations.isEmpty())
+    }
+
+    @Test
+    fun `여기로 가기는 카운트다운이 끝나면 목적지를 바꾼다`() = runBlocking {
+        route.state.value = NavState(destination = station)
+        controller.followDestination(gyeongpo)
+        awaitSheet()
+        delay(SHEET_MS + 200)
+        assertEquals(listOf(gyeongpo), route.destinations)
     }
 
     @Test
@@ -183,6 +213,17 @@ class RouteFlowControllerTest {
         controller.onReplace(shown.id, 1)
         assertEquals(listOf(hoengseong, market), route.waypoints())
         assertNull(controller.sheet.value)
+    }
+
+    @Test
+    fun `교체 시트는 카운트다운이 끝나도 경유지를 바꾸지 않는다`() = runBlocking {
+        val before = routeWith(hoengseong, pyeongchang)
+        route.state.value = before
+        controller.joinWaypoint(market, "sister", etaAt = null)
+        awaitSheet()
+        delay(SHEET_MS + 200)
+        assertNull(controller.sheet.value)
+        assertEquals(before, route.state.value)
     }
 
     @Test
@@ -281,6 +322,45 @@ class RouteFlowControllerTest {
         assertEquals(false, controller.acceptWaypointProposal("s1"))
         assertEquals(false, controller.acceptWaypointProposal("s2"))
         assertEquals(false, controller.acceptWaypointProposal("none"))
+        assertTrue(route.waypoints().isEmpty())
+        assertTrue(group.answers.isEmpty())
+    }
+
+    @Test
+    fun `Flow 2 경유지 제안은 카운트다운이 끝나면 자동으로 경유지에 넣고 수락한다`() = runBlocking {
+        route.state.value = routeWith()
+        group.receive(proposal("s1", kind = ProposalKind.AUTO_STOP, place = hoengseong, expiresIn = 600))
+        delay(450)
+        assertEquals(listOf(hoengseong), route.waypoints())
+        assertEquals(listOf("s1" to Answer.ACCEPTED), group.answers)
+    }
+
+    @Test
+    fun `경유지가 꽉 찼으면 Flow 2 제안이 만료돼도 그대로 둔다`() = runBlocking {
+        val before = routeWith(hoengseong, pyeongchang)
+        route.state.value = before
+        group.receive(proposal("s1", kind = ProposalKind.AUTO_STOP, place = market, expiresIn = 600))
+        delay(700)
+        assertEquals(before, route.state.value)
+        assertNull(controller.sheet.value)
+        assertTrue(group.answers.isEmpty())
+    }
+
+    @Test
+    fun `이미 거절한 Flow 2 제안은 만료돼도 수락하지 않는다`() = runBlocking {
+        route.state.value = routeWith()
+        group.receive(proposal("s1", kind = ProposalKind.AUTO_STOP, place = hoengseong, expiresIn = 600))
+        group.respond("s1", Answer.DECLINED)
+        delay(700)
+        assertTrue(route.waypoints().isEmpty())
+        assertEquals(listOf("s1" to Answer.DECLINED), group.answers)
+    }
+
+    @Test
+    fun `중간에 모이기 제안은 받는 화면이 없어 자동 수락하지 않는다`() = runBlocking {
+        route.state.value = routeWith()
+        group.receive(proposal("m1", kind = ProposalKind.MEETUP, place = hoengseong, expiresIn = 600))
+        delay(700)
         assertTrue(route.waypoints().isEmpty())
         assertTrue(group.answers.isEmpty())
     }
@@ -391,5 +471,10 @@ class RouteFlowControllerTest {
                 list.map { if (it.id == proposalId) it.copy(responses = it.responses + (myId to answer)) else it }
             }
         }
+    }
+
+    private companion object {
+        /** 하단 시트 카운트다운 (실제 5초를 테스트에서는 짧게). */
+        const val SHEET_MS = 300L
     }
 }

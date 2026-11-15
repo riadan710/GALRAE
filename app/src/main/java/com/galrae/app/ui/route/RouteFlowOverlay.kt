@@ -34,6 +34,7 @@ import com.galrae.app.group.model.Member
 import com.galrae.app.proposal.RouteFlowController
 import com.galrae.app.proposal.RouteFlowEvent
 import com.galrae.app.proposal.RouteSheet
+import com.galrae.app.ui.components.GalraeButtonStyle
 import com.galrae.app.ui.components.josa
 import com.galrae.app.ui.proposal.CountdownIndicator
 import com.galrae.app.ui.proposal.PlaceProposalPrompt
@@ -48,7 +49,7 @@ import kotlin.math.ceil
  * 상태와 동작은 전부 [RouteFlowController]가 갖고 있고, 여기서는 [RouteFlowController.sheet]를 그리고 버튼만 연결한다.
  *
  * - 시트가 떠 있는 동안 뒤 화면 터치는 막는다. 바깥을 눌러도 닫히지 않는다 (아무 결정 없이 닫히지 않게)
- * - Back = 보조 버튼(혼자 가기 / 그대로 가기). 카운트다운 만료와 같은 "경로가 바뀌지 않는 쪽"
+ * - Back = 보조 버튼(혼자 가기 / 그대로 가기). 카운트다운 만료는 주 버튼과 같다 (교체 시트만 그대로 가기)
  */
 @Composable
 fun RouteFlowOverlay(routeFlow: RouteFlowController, group: GroupRepository, modifier: Modifier = Modifier) {
@@ -104,7 +105,7 @@ fun RouteFlowOverlay(routeFlow: RouteFlowController, group: GroupRepository, mod
     }
 }
 
-/** 시트 종류별 문구 (docs 5-1, 5-2). 보조 버튼에는 남은 초를 붙인다. */
+/** 시트 종류별 문구 (docs 5-1, 5-2). 남은 초는 만료 때 실행될 버튼(주 버튼, 교체 시트는 그대로 가기)에 붙인다. */
 @Composable
 private fun RouteSheetContent(
     sheet: RouteSheet,
@@ -127,7 +128,8 @@ private fun RouteSheetContent(
             onConfirm = onPrimary,
             onCancel = onSecondary,
             detail = sheet.place.address,
-            cancelLeading = countdown,
+            confirmLeading = countdown,
+            confirmStyle = GalraeButtonStyle.PRIMARY,
         )
         // 5-1 받는 쪽: 다른 멤버의 목적지 제안
         is RouteSheet.DestinationProposed -> {
@@ -143,7 +145,7 @@ private fun RouteSheetContent(
                 onConfirm = onPrimary,
                 onCancel = onSecondary,
                 detail = sheet.proposal.place.address,
-                cancelLeading = countdown,
+                confirmLeading = countdown,
             )
         }
         // 5-2 여기로 가기 확인
@@ -157,7 +159,8 @@ private fun RouteSheetContent(
             onConfirm = onPrimary,
             onCancel = onSecondary,
             detail = sheet.place.address,
-            cancelLeading = countdown,
+            confirmLeading = countdown,
+            confirmStyle = GalraeButtonStyle.PRIMARY,
         )
         // 5-3 교체 시트: 같이 들르기·경유지 제안 수락 때 내 경유지가 2곳으로 꽉 찼으면
         is RouteSheet.ReplaceWaypoint -> ReplaceWaypointPrompt(

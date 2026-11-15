@@ -25,6 +25,8 @@ import com.galrae.app.ui.theme.TextSecondary
  * @param question null이면 질문 줄을 그리지 않는다
  * @param detail 장소 이름 아래 한 줄 (주소 등). null·빈 값이면 생략
  * @param cancelLeading 보조 버튼 앞 표시 (카운트다운 등)
+ * @param confirmLeading 주 버튼 앞 표시. 카운트다운은 만료 때 실행될 버튼에 붙인다
+ * @param confirmStyle 주 버튼 색 (Figma: 내가 시작한 동작은 검정, 받은 제안 수락은 파랑)
  */
 @Composable
 fun PlaceProposalPrompt(
@@ -40,6 +42,8 @@ fun PlaceProposalPrompt(
     enabled: Boolean = true,
     detail: String? = null,
     cancelLeading: (@Composable () -> Unit)? = null,
+    confirmLeading: (@Composable () -> Unit)? = null,
+    confirmStyle: GalraeButtonStyle = GalraeButtonStyle.BRAND,
 ) {
     Column(modifier.padding(horizontal = 36.dp, vertical = 32.dp), verticalArrangement = Arrangement.spacedBy(32.dp)) {
         Text(title, style = MaterialTheme.typography.headlineSmall)
@@ -62,7 +66,7 @@ fun PlaceProposalPrompt(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             GalraeButton(cancelLabel, onCancel, Modifier.weight(1f), GalraeButtonStyle.SECONDARY, leading = cancelLeading)
-            GalraeButton(confirmLabel, onConfirm, Modifier.weight(1f), enabled = enabled)
+            GalraeButton(confirmLabel, onConfirm, Modifier.weight(1f), confirmStyle, enabled, confirmLeading)
         }
     }
 }
