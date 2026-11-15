@@ -32,11 +32,14 @@ import com.galrae.app.place.Place
 class MockCommandReceiver(private val mock: MockGroupRepository) : BroadcastReceiver() {
 
     fun register(context: Context) {
-        // adb(shell)에서 보내야 하므로 exported. 1차는 앱 전체가 Mock이라 외부에서 불려도 가상 데이터만 바뀐다
+        // adb(shell)에서 보내야 하므로 exported. 대신 보내는 쪽에 DUMP 권한을 요구해
+        // shell·시스템만 보낼 수 있게 한다 (일반 앱은 DUMP를 받을 수 없음)
         ContextCompat.registerReceiver(
             context,
             this,
             IntentFilter(ACTION),
+            SENDER_PERMISSION,
+            null,
             ContextCompat.RECEIVER_EXPORTED,
         )
     }
@@ -100,5 +103,6 @@ class MockCommandReceiver(private val mock: MockGroupRepository) : BroadcastRece
     private companion object {
         const val TAG = "GALRAE/MockCmd"
         const val ACTION = "com.galrae.app.MOCK"
+        const val SENDER_PERMISSION = "android.permission.DUMP"
     }
 }
