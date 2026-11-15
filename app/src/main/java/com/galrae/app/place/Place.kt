@@ -11,6 +11,8 @@ data class Place(
     val address: String = "",
     val lat: Double? = null,
     val lon: Double? = null,
+    /** 편의시설 태그(충전소·식당·편의점 등). 추천 장소 카드에 표시. */
+    val tags: List<String> = emptyList(),
 ) {
     val hasCoord: Boolean get() = lat != null && lon != null
 }
