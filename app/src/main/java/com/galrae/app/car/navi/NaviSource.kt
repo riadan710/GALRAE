@@ -3,6 +3,7 @@ package com.galrae.app.car.navi
 import ai.pleos.playground.navi.constants.RouteOption
 import ai.pleos.playground.navi.constants.WaypointIndex
 import ai.pleos.playground.navi.data.DestinationInfo
+import ai.pleos.playground.navi.data.DestinationArrivedInfo
 import ai.pleos.playground.navi.data.RequestWaypointInfo
 import ai.pleos.playground.navi.data.RouteInfo
 import ai.pleos.playground.navi.data.RouteStartInfo
@@ -41,6 +42,8 @@ class NaviSource(context: Context) {
 
     private val _state = MutableStateFlow(NavState())
     val state: StateFlow<NavState> = _state.asStateFlow()
+    private val _arrived = MutableStateFlow(false)
+    val arrived = _arrived.asStateFlow()
 
     private val _loaded = MutableStateFlow(false)
 
@@ -128,6 +131,7 @@ class NaviSource(context: Context) {
         // 내비 UI에서 목적지를 바꾸거나 우리 앱이 경로를 보내면 온다 (onDestinationChanged는 에뮬 내비가 보내지 않음, docs 5-1).
         // 경유지가 있으면 name·distance는 목적지가 아니라 첫 경유지 기준이라 쓰지 않고 다시 조회한다 (에뮬 실측)
         override fun onRouteStarted(routeStartInfo: RouteStartInfo) {
+            _arrived.value = false
             Log.i(TAG, "onRouteStarted ${routeStartInfo.name}")
             refresh()
         }
@@ -147,6 +151,11 @@ class NaviSource(context: Context) {
         override fun onRouteEnded() {
             Log.i(TAG, "onRouteEnded")
             refresh()
+        }
+
+        override fun onDestinationArrived(destinationArrivedInfo: DestinationArrivedInfo) {
+            _arrived.value = true
+            Log.i(TAG, "destination arrived")
         }
 
         override fun onDestinationInfo(destinationInfo: DestinationInfo) {

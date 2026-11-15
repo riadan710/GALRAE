@@ -34,7 +34,10 @@ class MainActivity : ComponentActivity() {
     // 위치: 포그라운드 서비스(location 유형) 시작 조건. 알림: 서비스 알림 표시 (거부해도 서비스는 동작)
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
-    ) { startKeepAliveIfAllowed() }
+    ) {
+        (application as GalraeApp).myCar.refreshMotion()
+        startKeepAliveIfAllowed()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,6 +64,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         speech.start()
+        (application as GalraeApp).myCar.refreshMotion()
     }
 
     override fun onStop() {
@@ -95,6 +99,7 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.POST_NOTIFICATIONS,
+            android.car.Car.PERMISSION_SPEED,
         )
     }
 }

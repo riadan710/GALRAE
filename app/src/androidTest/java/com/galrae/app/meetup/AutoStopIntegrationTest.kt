@@ -17,6 +17,25 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AutoStopIntegrationTest {
+    @Test fun myStatusUpdatesWithoutChangingOtherMembersOrResettingStatusTime() = runBlocking {
+        val group = MockGroupRepository()
+        val status = com.galrae.app.group.model.MemberStatus.STOPPED
+        val others = group.members.value.filter { it.id != group.myId }.map { it.id to it.status }
+        group.publishMyState(NavState(), EnergyLevel(EnergyType.EV, 80), status)
+        val stoppedAt = group.members.value.first { it.id == group.myId }.statusAt
+        delay(30)
+        group.publishMyState(NavState(), EnergyLevel(EnergyType.EV, 79), status)
+        val stopped = group.members.value.first { it.id == group.myId }
+        assertEquals(status, stopped.status)
+        assertEquals(stoppedAt, stopped.statusAt)
+        assertEquals(79, stopped.energy!!.percent)
+        group.publishMyState(NavState(), EnergyLevel(EnergyType.EV, 15), com.galrae.app.group.model.MemberStatus.ENERGY_LOW_EV)
+        val low = group.members.value.first { it.id == group.myId }
+        assertEquals(com.galrae.app.group.model.MemberStatus.ENERGY_LOW_EV, low.status)
+        assertTrue(low.statusAt > stoppedAt)
+        assertEquals(others, group.members.value.filter { it.id != group.myId }.map { it.id to it.status })
+    }
+
     @Test fun expiredAndRepeatedAnswersAreIgnored() = runBlocking {
         val group = MockGroupRepository()
         val place = group.members.value.first { it.id == "sister" }.nav.destination!!

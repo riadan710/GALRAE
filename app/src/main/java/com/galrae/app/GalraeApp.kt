@@ -3,6 +3,8 @@ package com.galrae.app
 import android.app.Application
 import android.util.Log
 import com.galrae.app.car.MyCar
+import com.galrae.app.car.MyCarStatus
+import android.os.SystemClock
 import com.galrae.app.group.GroupRepository
 import com.galrae.app.group.mock.MockCommandReceiver
 import com.galrae.app.group.mock.MockGroupRepository
@@ -23,6 +25,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.flow.flow
 
 /**
  * 앱 전역 객체를 한 번만 만들어 들고 있는 곳.
@@ -104,8 +110,16 @@ class GalraeApp : Application() {
 
     /** 내 차 상태가 바뀔 때마다 그룹에 올린다 (Firebase에선 members/{uid} 쓰기). */
     private fun publishMyState() = appScope.launch {
+        val resolver = MyCarStatus()
+        val clock = flow {
+            while (currentCoroutineContext().isActive) {
+                emit(SystemClock.elapsedRealtime())
+                delay(1_000)
+            }
+        }
         // 내비 원본(myCar.nav)이 아니라 RouteManager.state: 경로를 보낸 직후의 "경로 없음" 공백을 임시 경로로 메운 값
-        combine(route.state, myCar.energyLevel) { nav, energy -> nav to energy }
-            .collect { (nav, energy) -> group.publishMyState(nav, energy) }
+        combine(route.state, myCar.energyLevel, myCar.motion, myCar.arrived, clock) { nav, energy, motion, arrived, now ->
+            Triple(nav, energy, resolver.resolve(motion, energy, arrived, now))
+        }.collect { (nav, energy, status) -> group.publishMyState(nav, energy, status) }
     }
 }

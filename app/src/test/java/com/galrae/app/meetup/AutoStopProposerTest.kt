@@ -24,7 +24,7 @@ class AutoStopProposerTest {
         override val myId = "me"
         override val members = MutableStateFlow(initial)
         override val proposals = MutableStateFlow<List<Proposal>>(emptyList())
-        override fun publishMyState(nav: NavState, energy: EnergyLevel?) = Unit
+        override fun publishMyState(nav: NavState, energy: EnergyLevel?, status: com.galrae.app.group.model.MemberStatus?) = Unit
         override fun sendProposal(kind: ProposalKind, place: Place, trigger: ProposalTrigger?, summary: MeetSummary?, toId: String?): Proposal =
             error("테스트는 주입한 send에서 제안을 기록합니다")
         override fun respond(proposalId: String, answer: Answer) = Unit

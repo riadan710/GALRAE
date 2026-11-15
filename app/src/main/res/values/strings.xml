@@ -41,6 +41,7 @@
     <string name="destination_unset">목적지 미설정</string>
     <string name="location_unknown">위치 정보 없음</string>
     <string name="member_moving">이동중</string>
+    <string name="member_status_unknown">상태 확인 중</string>
     <string name="member_stopped">정차중</string>
     <string name="member_arrived">도착</string>
     <string name="member_route_changed">경로 변경</string>

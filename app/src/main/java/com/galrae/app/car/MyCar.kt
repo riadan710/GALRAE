@@ -23,6 +23,11 @@ class MyCar(context: Context) {
     private val vehicle = Vehicle(context.applicationContext)
 
     private val navi = NaviSource(context)
+    private val motionSource = MotionSource(context.applicationContext)
+    val motion get() = motionSource.state
+    val arrived get() = navi.arrived
+
+    fun refreshMotion() = motionSource.refresh()
 
     // TODO(내연기관): AAOS INFO_FUEL_TYPE(10=ELECTRIC)로 차종을 확인해 EV면 EvBatterySource, 아니면 FuelSource를 고른다.
     //  지금은 에뮬 차량이 EV라 EV로 고정 (EnergySource 참고)
@@ -52,6 +57,7 @@ class MyCar(context: Context) {
     fun requestRoute(destination: Place, waypoints: List<Place>) = navi.requestRoute(destination, waypoints)
 
     fun start() {
+        motionSource.start()
         navi.start()
         runCatching { vehicle.initialize() }
             .onSuccess { energy.start() }
@@ -59,6 +65,7 @@ class MyCar(context: Context) {
     }
 
     fun stop() {
+        motionSource.stop()
         navi.stop()
         energy.stop()
         runCatching { vehicle.release() }

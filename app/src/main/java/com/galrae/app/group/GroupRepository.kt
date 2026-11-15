@@ -6,6 +6,7 @@ import com.galrae.app.group.model.TextMessage
 import com.galrae.app.group.model.Answer
 import com.galrae.app.group.model.MeetSummary
 import com.galrae.app.group.model.Member
+import com.galrae.app.group.model.MemberStatus
 import com.galrae.app.group.model.Proposal
 import com.galrae.app.group.model.ProposalKind
 import com.galrae.app.group.model.ProposalTrigger
@@ -34,7 +35,7 @@ interface GroupRepository {
     fun sendText(text: String, toId: String? = null): TextMessage
 
     /** 내 차 상태를 그룹에 올린다. 내 차 상태가 바뀔 때마다 부른다. */
-    fun publishMyState(nav: NavState, energy: EnergyLevel?)
+    fun publishMyState(nav: NavState, energy: EnergyLevel?, status: MemberStatus? = null)
 
     /** 그룹에 제안을 보낸다. 같은 사람이 보낸 이전 진행 중 제안은 대체된다 (docs 9-1). */
     fun sendProposal(

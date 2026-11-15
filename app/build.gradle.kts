@@ -11,6 +11,7 @@ val localConfig = Properties().apply {
 }
 
 android {
+    useLibrary("android.car")
     namespace = "com.galrae.app"
     compileSdk {
         version = release(37)

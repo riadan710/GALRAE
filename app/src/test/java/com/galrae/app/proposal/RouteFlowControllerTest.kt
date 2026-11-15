@@ -372,7 +372,7 @@ class RouteFlowControllerTest {
 
         fun receive(p: Proposal) = proposals.update { it + p }
 
-        override fun publishMyState(nav: NavState, energy: EnergyLevel?) {}
+        override fun publishMyState(nav: NavState, energy: EnergyLevel?, status: com.galrae.app.group.model.MemberStatus?) {}
 
         override fun sendProposal(
             kind: ProposalKind,

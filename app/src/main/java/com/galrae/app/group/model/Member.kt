@@ -42,6 +42,7 @@ data class MemberLocation(
 
 /** 멤버 카드 상태 (docs 3장 카드 상태 표). 연결 끊김은 [Member.online]으로 따로 본다. */
 enum class MemberStatus {
+    UNKNOWN,
     MOVING,
     STOPPED,
     ARRIVED,

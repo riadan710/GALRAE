@@ -17,6 +17,8 @@
 
     <!-- EV 배터리 잔량(SOC) 조회·구독 (Normal, 설치 시 자동 부여) -->
     <uses-permission android:name="pleos.car.permission.CAR_ENERGY" />
+    <uses-permission android:name="android.car.permission.CAR_SPEED" />
+    <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
 
     <!-- 포그라운드 서비스(location 유형): 위치 권한이 있어야 시작 가능 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />

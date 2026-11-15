@@ -47,6 +47,7 @@ internal fun MemberSummary(member: Member, isMe: Boolean, showChevron: Boolean =
     val status = when {
         !member.online -> R.string.member_offline
         else -> when (member.status) {
+            MemberStatus.UNKNOWN -> R.string.member_status_unknown
             MemberStatus.MOVING -> R.string.member_moving
             MemberStatus.STOPPED -> R.string.member_stopped
             MemberStatus.ARRIVED -> R.string.member_arrived
