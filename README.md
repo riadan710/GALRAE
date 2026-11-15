@@ -1,5 +1,5 @@
 <div align="center">
-<img width="1920" height="480" alt="갈래배너" src="https://github.com/user-attachments/assets/93aa4866-7b23-4545-9f12-15dba058e977" />
+<img width="1920" height="480" alt="KakaoTalk_Photo_2026-11-15-23-31-47" src="https://github.com/user-attachments/assets/4186e34b-fa61-49b0-a9e0-67c7295571c9" />
 
 각자의 차로 이동하는 일행이 서로의 이동 상황에 맞춰<br>
 주행 중에도 계획부터 주차까지 조율하도록 돕는 차량용 앱.
